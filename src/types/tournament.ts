@@ -10,6 +10,8 @@ export interface AppUser {
   displayName: string;
   photoURL?: string;
   role: PlayerRole;
+  /** ids de los torneos (tournaments/{id}) de los que participa, como creador o invitado */
+  tournamentIds: string[];
 }
 
 export interface BlindLevel {
@@ -53,7 +55,8 @@ export interface TournamentSettings {
 
   chipValues: ChipDenominations;
   startingStack: ChipDenominations;
-  addonStack: Partial<ChipDenominations>;
+  /** fichas que se entregan en el addon; 0 en los colores que no aplican */
+  addonStack: ChipDenominations;
 
   blindStructure: BlindLevel[];
   /** Minutos desde el inicio del torneo en que cierran las recompras */
@@ -69,6 +72,12 @@ export interface TournamentSettings {
   pausedRemainingMs: number | null;
 
   createdAt: number;
+  /** uid de quien creó el torneo */
+  ownerUid: string;
+  /** uids con permiso de dealer/admin sobre este torneo (el creador + respaldos) */
+  dealerUids: string[];
+  /** código corto para unirse al torneo, ej. "PANT2026" */
+  joinCode: string;
 }
 
 export interface TableSeatAssignment {

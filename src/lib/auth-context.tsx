@@ -14,7 +14,7 @@ import {
   signOut,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { AppUser, PlayerRole } from "@/types/tournament";
 
@@ -43,7 +43,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    // Suscripción al documento de perfil del usuario actual. Se recrea cada
+    // vez que cambia la sesión, y se cierra la anterior para no dejar
+    // listeners de Firestore huérfanos.
+    let unsubscribeProfile: (() => void) | undefined;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      unsubscribeProfile?.();
+      unsubscribeProfile = undefined;
+
       setFirebaseUser(user);
 
       if (!user) {
@@ -55,9 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profileRef = doc(db, "users", user.uid);
       const snapshot = await getDoc(profileRef);
 
-      if (snapshot.exists()) {
-        setProfile(snapshot.data() as AppUser);
-      } else {
+      if (!snapshot.exists()) {
         const role: PlayerRole = ADMIN_EMAILS.includes(
           (user.email ?? "").toLowerCase()
         )
@@ -69,16 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           displayName: user.displayName ?? "Jugador",
           photoURL: user.photoURL ?? undefined,
           role,
+          tournamentIds: [],
         };
 
         await setDoc(profileRef, newProfile);
-        setProfile(newProfile);
       }
 
-      setLoading(false);
+      // A partir de acá seguimos los cambios en vivo (rol, nombre, torneos
+      // en los que participa), sin depender de otra lectura manual.
+      unsubscribeProfile = onSnapshot(profileRef, (snap) => {
+        if (snap.exists()) {
+          setProfile(snap.data() as AppUser);
+        }
+        setLoading(false);
+      });
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeProfile?.();
+      unsubscribeAuth();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
