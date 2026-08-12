@@ -11,11 +11,27 @@ import {
   setPlayerRole,
 } from "@/lib/tournaments";
 import type { Player, TournamentSettings } from "@/types/tournament";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  IconArrowLeft,
+  IconCheck,
+  IconCopy,
+  IconUsers,
+} from "@/components/ui";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Dueño del torneo",
   dealer: "Dealer",
   player: "Jugador",
+};
+
+const ROLE_TONE: Record<string, "owner" | "dealer" | "player"> = {
+  owner: "owner",
+  dealer: "dealer",
+  player: "player",
 };
 
 export default function TorneoDetallePage({
@@ -90,12 +106,17 @@ export default function TorneoDetallePage({
     );
   }
 
+  // El rol que se muestra nunca depende únicamente del dato guardado en el
+  // documento del jugador: si sos el dueño del torneo (tournament.ownerUid),
+  // siempre se te trata como tal, aunque ese documento sea viejo.
+  const effectiveRole = isOwner ? "owner" : player.role;
+
   const isDealer = tournament.dealerUids.includes(profile.uid);
   const joinLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/torneo/unirse?code=${tournament.joinCode}`
       : "";
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&color=255e2e&data=${encodeURIComponent(
     joinLink
   )}`;
 
@@ -116,84 +137,103 @@ export default function TorneoDetallePage({
   };
 
   return (
-    <div className="flex flex-col flex-1 items-center bg-pp-cream px-6 py-12 gap-6 text-center">
-      <Link
-        href="/panel"
-        className="text-sm text-pp-brown/60 underline self-start"
-      >
-        ← Mis torneos
-      </Link>
+    <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
+      <div className="w-full max-w-md mx-auto flex flex-col items-center gap-6">
+        <Link
+          href="/panel"
+          className="flex items-center gap-1.5 text-sm text-pp-brown/60 hover:text-pp-brown self-start"
+        >
+          <IconArrowLeft />
+          Mis torneos
+        </Link>
 
-      <h1 className="font-display text-2xl text-pp-green-dark">
-        {tournament.name}
-      </h1>
-      <span className="rounded-full bg-pp-green-light/30 px-4 py-1 text-sm text-pp-green-dark">
-        {ROLE_LABEL[player.role] ?? player.role}
-      </span>
-
-      {isDealer && (
-        <div className="w-full max-w-xs rounded-2xl bg-white/60 border border-pp-green-mid/20 px-5 py-4 flex flex-col items-center gap-3">
-          <p className="text-sm text-pp-brown/70">
-            Código para que se unan los jugadores
-          </p>
-          <p className="font-mono text-2xl tracking-widest text-pp-green-dark">
-            {tournament.joinCode}
-          </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={qrSrc}
-            alt={`Código QR para unirse a ${tournament.name}`}
-            width={160}
-            height={160}
-            className="rounded-lg"
-          />
-          <button
-            onClick={handleCopy}
-            className="text-sm text-pp-green-dark underline"
-          >
-            {copied ? "¡Copiado!" : "Copiar link para compartir"}
-          </button>
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="font-display text-3xl text-pp-green-dark leading-tight">
+            {tournament.name}
+          </h1>
+          <Badge tone={ROLE_TONE[effectiveRole]}>
+            {ROLE_LABEL[effectiveRole] ?? effectiveRole}
+          </Badge>
         </div>
-      )}
 
-      {isOwner && (
-        <div className="w-full max-w-xs rounded-2xl bg-white/60 border border-pp-green-mid/20 px-5 py-4 flex flex-col gap-3">
-          <p className="text-sm text-pp-brown/70 text-left">
-            Jugadores ({players.length})
-            {tournament.dealerMode === "rotating" &&
-              " — dealer rotativo activado"}
-          </p>
-          <div className="flex flex-col gap-2">
-            {players.map((p) => (
-              <div
-                key={p.uid}
-                className="flex items-center justify-between gap-2"
-              >
-                <span className="text-sm text-pp-brown">
-                  {p.displayName}
-                  {p.uid === tournament.ownerUid && " (tú)"}
-                </span>
-                {p.uid !== tournament.ownerUid && (
-                  <button
-                    onClick={() =>
-                      handleToggleDealer(p.uid, p.role !== "dealer")
-                    }
-                    disabled={savingUid === p.uid}
-                    className="text-xs rounded-full border border-pp-green-dark text-pp-green-dark px-3 py-1 hover:bg-pp-green-light/20 disabled:opacity-50"
-                  >
-                    {p.role === "dealer" ? "Sacar dealer" : "Hacer dealer"}
-                  </button>
+        {isDealer && (
+          <Card className="flex flex-col items-center gap-4 text-center">
+            <p className="text-sm text-pp-brown/70">
+              Código para que se unan los jugadores
+            </p>
+            <p className="font-mono text-3xl tracking-[0.3em] text-pp-green-dark">
+              {tournament.joinCode}
+            </p>
+            <div className="rounded-xl overflow-hidden border border-pp-green-mid/20 p-2 bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrSrc}
+                alt={`Código QR para unirse a ${tournament.name}`}
+                width={180}
+                height={180}
+              />
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleCopy}>
+              <span className="inline-flex items-center gap-1.5">
+                {copied ? <IconCheck /> : <IconCopy />}
+                {copied ? "¡Copiado!" : "Copiar link para compartir"}
+              </span>
+            </Button>
+          </Card>
+        )}
+
+        {isOwner && (
+          <Card className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 text-pp-brown/70">
+              <IconUsers />
+              <p className="text-sm font-medium">
+                Jugadores ({players.length})
+                {tournament.dealerMode === "rotating" && (
+                  <span className="text-pp-brown/50">
+                    {" "}
+                    · dealer rotativo activado
+                  </span>
                 )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              </p>
+            </div>
+            <div className="flex flex-col divide-y divide-pp-green-mid/10">
+              {players.map((p) => (
+                <div
+                  key={p.uid}
+                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar name={p.displayName} />
+                    <span className="text-sm text-pp-brown">
+                      {p.displayName}
+                      {p.uid === tournament.ownerUid && (
+                        <span className="text-pp-brown/50"> (tú)</span>
+                      )}
+                    </span>
+                  </div>
+                  {p.uid !== tournament.ownerUid && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() =>
+                        handleToggleDealer(p.uid, p.role !== "dealer")
+                      }
+                      disabled={savingUid === p.uid}
+                    >
+                      {p.role === "dealer" ? "Sacar dealer" : "Hacer dealer"}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
-      <p className="max-w-sm text-pp-brown/80">
-        Acá van a vivir el timer, las mesas, las recompras y el bote. Esta
-        pantalla se construye en la próxima fase.
-      </p>
+        <Card className="border-dashed text-center text-pp-brown/70 text-sm">
+          Acá van a vivir el timer, las mesas, las recompras y el bote. Esta
+          pantalla se construye en la próxima fase.
+        </Card>
+      </div>
     </div>
   );
 }
