@@ -1,4 +1,5 @@
 import {
+  arrayRemove,
   arrayUnion,
   collection,
   doc,
@@ -15,6 +16,7 @@ import type {
   BlindLevel,
   ChipDenominations,
   Player,
+  PlayerRole,
   TournamentSettings,
 } from "@/types/tournament";
 
@@ -43,9 +45,10 @@ export interface CreateTournamentInput {
   blindStructure: BlindLevel[];
   rebuyDeadlineMinutes: number;
   seatsPerTable: number;
+  dealerMode: "fixed" | "rotating";
 }
 
-/** Crea un torneo nuevo y agrega a quien lo crea como dealer. */
+/** Crea un torneo nuevo. Quien lo crea queda como "owner" (dueño) del torneo. */
 export async function createTournament(
   input: CreateTournamentInput,
   owner: AppUser
@@ -72,7 +75,7 @@ export async function createTournament(
     tournamentId: newDocRef.id,
     uid: owner.uid,
     displayName: owner.displayName,
-    role: "dealer",
+    role: "owner",
     tableId: null,
     seat: null,
     chips: 0,
@@ -161,4 +164,30 @@ export async function getUserTournaments(
     tournamentIds.map((id) => getTournament(id))
   );
   return results.filter((t): t is TournamentSettings => t !== null);
+}
+
+export async function listPlayers(tournamentId: string): Promise<Player[]> {
+  const snap = await getDocs(collection(db, "tournaments", tournamentId, "players"));
+  return snap.docs.map((d) => d.data() as Player);
+}
+
+/**
+ * Le asigna o le saca el rol de dealer a un jugador. Solo debería llamarse
+ * desde la pantalla del owner (no hay chequeo de permisos acá, lo hacen las
+ * reglas de Firestore: solo alguien en dealerUids puede escribir el torneo).
+ */
+export async function setPlayerRole(
+  tournamentId: string,
+  targetUid: string,
+  role: Extract<PlayerRole, "dealer" | "player">
+): Promise<void> {
+  await updateDoc(
+    doc(db, "tournaments", tournamentId, "players", targetUid),
+    { role }
+  );
+
+  const tournamentRef = doc(db, "tournaments", tournamentId);
+  await updateDoc(tournamentRef, {
+    dealerUids: role === "dealer" ? arrayUnion(targetUid) : arrayRemove(targetUid),
+  });
 }

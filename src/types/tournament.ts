@@ -2,14 +2,16 @@
 // Colecciones raíz: "tournaments/{tournamentId}" con subcolecciones
 // "players", "tables", "transactions".
 
-export type PlayerRole = "player" | "dealer" | "admin";
+// "owner" = quien creó el torneo (único, no rotativo). "dealer" = puede
+// controlar el timer, recompras y eliminaciones; el owner se lo puede dar o
+// sacar a cualquier jugador. "player" = jugador normal.
+export type PlayerRole = "owner" | "dealer" | "player";
 
 /** Perfil de usuario autenticado (Google o invitado) */
 export interface AppUser {
   uid: string;
   displayName: string;
   photoURL?: string;
-  role: PlayerRole;
   /** ids de los torneos (tournaments/{id}) de los que participa, como creador o invitado */
   tournamentIds: string[];
 }
@@ -63,6 +65,8 @@ export interface TournamentSettings {
   rebuyDeadlineMinutes: number;
   /** Jugadores por mesa antes de necesitar balanceo/mesa nueva */
   seatsPerTable: number;
+  /** "fixed": un dealer fijo. "rotating": el rol de dealer puede pasar entre jugadores */
+  dealerMode: "fixed" | "rotating";
 
   status: TournamentStatus;
   currentLevel: number;

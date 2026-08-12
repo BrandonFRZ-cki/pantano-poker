@@ -90,6 +90,7 @@ export const PANTANO_DEFAULTS = {
   blindStructure: PANTANO_BLIND_STRUCTURE,
   rebuyDeadlineMinutes: 90,
   seatsPerTable: 9,
+  dealerMode: "fixed" as const,
 };
 
 export const CHIP_COLOR_LABEL: Record<keyof ChipDenominations, string> = {

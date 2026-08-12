@@ -29,6 +29,7 @@ interface FormState {
   blindStructure: BlindLevel[];
   rebuyDeadlineMinutes: number;
   seatsPerTable: number;
+  dealerMode: "fixed" | "rotating";
 }
 
 const BLANK_STATE: FormState = {
@@ -48,6 +49,7 @@ const BLANK_STATE: FormState = {
   ],
   rebuyDeadlineMinutes: 90,
   seatsPerTable: 9,
+  dealerMode: "fixed",
 };
 
 const PANTANO_STATE: FormState = {
@@ -65,6 +67,7 @@ const PANTANO_STATE: FormState = {
   blindStructure: PANTANO_DEFAULTS.blindStructure,
   rebuyDeadlineMinutes: PANTANO_DEFAULTS.rebuyDeadlineMinutes,
   seatsPerTable: PANTANO_DEFAULTS.seatsPerTable,
+  dealerMode: PANTANO_DEFAULTS.dealerMode,
 };
 
 function numberInputProps(value: number) {
@@ -158,6 +161,7 @@ export default function NuevoTorneoPage() {
           blindStructure: form.blindStructure,
           rebuyDeadlineMinutes: form.rebuyDeadlineMinutes,
           seatsPerTable: form.seatsPerTable,
+          dealerMode: form.dealerMode,
         },
         profile
       );
@@ -364,6 +368,26 @@ export default function NuevoTorneoPage() {
               />
             </label>
           </div>
+          <label className={labelClass}>
+            ¿Quién puede ser dealer?
+            <select
+              className={inputClass}
+              value={form.dealerMode}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  dealerMode: e.target.value as "fixed" | "rotating",
+                }))
+              }
+            >
+              <option value="fixed">
+                Dealer fijo (vos elegís quién controla el timer)
+              </option>
+              <option value="rotating">
+                Dealer rotativo (cualquier jugador puede serlo)
+              </option>
+            </select>
+          </label>
         </section>
 
         <section className="flex flex-col gap-3">

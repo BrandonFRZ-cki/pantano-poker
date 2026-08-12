@@ -6,8 +6,14 @@ import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { firebaseUser, profile, loading, signInWithGoogle, saveDisplayName } =
-    useAuth();
+  const {
+    firebaseUser,
+    profile,
+    loading,
+    signInWithGoogle,
+    signInAsGuest,
+    saveDisplayName,
+  } = useAuth();
 
   // null = el usuario todavía no tocó el campo, mostramos el nombre de su
   // perfil (o el de Google) como valor por defecto sin usar un efecto.
@@ -23,6 +29,15 @@ export default function LoginPage() {
       await signInWithGoogle();
     } catch {
       setError("No se pudo iniciar sesión con Google. Probá de nuevo.");
+    }
+  };
+
+  const handleGuestSignIn = async () => {
+    setError(null);
+    try {
+      await signInAsGuest();
+    } catch {
+      setError("No se pudo entrar como invitado. Probá de nuevo.");
     }
   };
 
@@ -58,12 +73,20 @@ export default function LoginPage() {
           Entrá con tu cuenta de Google. Después vas a poder elegir cómo
           querés que se vea tu nombre en la mesa.
         </p>
-        <button
-          onClick={handleGoogleSignIn}
-          className="rounded-full bg-pp-green-dark text-pp-cream font-display py-3 px-6 hover:bg-pp-green-mid transition-colors"
-        >
-          Entrar con Google
-        </button>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <button
+            onClick={handleGoogleSignIn}
+            className="rounded-full bg-pp-green-dark text-pp-cream font-display py-3 px-6 hover:bg-pp-green-mid transition-colors"
+          >
+            Entrar con Google
+          </button>
+          <button
+            onClick={handleGuestSignIn}
+            className="rounded-full border border-pp-brown/30 text-pp-brown/70 font-display py-3 px-6 hover:bg-pp-brown/5 transition-colors"
+          >
+            Entrar como invitado
+          </button>
+        </div>
         {error && <p className="text-sm text-red-700">{error}</p>}
       </div>
     );

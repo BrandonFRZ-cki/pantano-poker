@@ -10,20 +10,14 @@ import {
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInAnonymously,
   signInWithPopup,
   signOut,
   type User as FirebaseUser,
 } from "firebase/auth";
 import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import type { AppUser, PlayerRole } from "@/types/tournament";
-
-// Emails que entran como "admin" (respaldo del dealer) la primera vez que
-// inician sesión. Se configura en .env.local, separado por comas.
-const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "")
-  .split(",")
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean);
+import type { AppUser } from "@/types/tournament";
 
 interface AuthContextValue {
   firebaseUser: FirebaseUser | null;
@@ -31,6 +25,7 @@ interface AuthContextValue {
   /** true mientras se resuelve el estado inicial de sesión */
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInAsGuest: () => Promise<void>;
   saveDisplayName: (name: string) => Promise<void>;
   signOutUser: () => Promise<void>;
 }
@@ -64,25 +59,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const snapshot = await getDoc(profileRef);
 
       if (!snapshot.exists()) {
-        const role: PlayerRole = ADMIN_EMAILS.includes(
-          (user.email ?? "").toLowerCase()
-        )
-          ? "admin"
-          : "player";
-
         const newProfile: AppUser = {
           uid: user.uid,
-          displayName: user.displayName ?? "Jugador",
+          displayName: user.displayName ?? "Invitado",
           photoURL: user.photoURL ?? undefined,
-          role,
           tournamentIds: [],
         };
 
         await setDoc(profileRef, newProfile);
       }
 
-      // A partir de acá seguimos los cambios en vivo (rol, nombre, torneos
-      // en los que participa), sin depender de otra lectura manual.
+      // A partir de acá seguimos los cambios en vivo (nombre, torneos en
+      // los que participa), sin depender de otra lectura manual.
       unsubscribeProfile = onSnapshot(profileRef, (snap) => {
         if (snap.exists()) {
           setProfile(snap.data() as AppUser);
@@ -100,6 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     await signInWithPopup(auth, provider);
+  };
+
+  // Sesión anónima de Firebase: útil para probar la app o para quien no
+  // quiere entrar con Google. El nombre se elige en el paso siguiente, igual
+  // que con Google.
+  const signInAsGuest = async () => {
+    await signInAnonymously(auth);
   };
 
   const saveDisplayName = async (name: string) => {
@@ -124,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         loading,
         signInWithGoogle,
+        signInAsGuest,
         saveDisplayName,
         signOutUser,
       }}
