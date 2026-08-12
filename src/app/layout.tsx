@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Archivo_Black } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const bodyFont = Inter({
   variable: "--font-body",
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${bodyFont.variable} ${displayFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-pp-cream text-pp-brown">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
