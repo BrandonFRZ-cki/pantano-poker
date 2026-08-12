@@ -1,0 +1,18 @@
+{
+  "name": "Pantano Poker",
+  "short_name": "Pantano Poker",
+  "description": "Gestión del torneo familiar Pantano Poker: timer, jugadores, recompras, bounty y premios.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9f3e7",
+  "theme_color": "#255e2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

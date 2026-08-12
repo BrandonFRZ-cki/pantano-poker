@@ -1,0 +1,121 @@
+// Modelo de datos de Firestore para Pantano Poker.
+// Colecciones raíz: "tournaments/{tournamentId}" con subcolecciones
+// "players", "tables", "transactions".
+
+export type PlayerRole = "player" | "dealer" | "admin";
+
+/** Perfil de usuario autenticado (Google o invitado) */
+export interface AppUser {
+  uid: string;
+  displayName: string;
+  photoURL?: string;
+  role: PlayerRole;
+}
+
+export interface BlindLevel {
+  level: number;
+  smallBlind: number;
+  bigBlind: number;
+  ante: number;
+  durationMinutes: number;
+  isBreak?: boolean;
+}
+
+export type TournamentStatus =
+  | "scheduled"
+  | "registering"
+  | "in_progress"
+  | "paused"
+  | "break"
+  | "finished";
+
+export interface ChipDenominations {
+  white: number;
+  green: number;
+  red: number;
+  blue: number;
+  black: number;
+}
+
+export interface TournamentSettings {
+  id: string;
+  name: string;
+
+  buyIn: number;
+  rebuyAmount: number;
+  addonAmount: number;
+  /** Parte de cada buy-in/recompra/addon que se destina al bounty del jugador */
+  bountyPerElimination: number;
+  /** Porcentaje del bote por puesto, ej. [0.7, 0.3] para 1º y 2º */
+  prizeSplit: number[];
+  /** Monto de la multa de las reglas de la casa (fondo de trofeo/gastos) */
+  houseRuleFine: number;
+
+  chipValues: ChipDenominations;
+  startingStack: ChipDenominations;
+  addonStack: Partial<ChipDenominations>;
+
+  blindStructure: BlindLevel[];
+  /** Minutos desde el inicio del torneo en que cierran las recompras */
+  rebuyDeadlineMinutes: number;
+  /** Jugadores por mesa antes de necesitar balanceo/mesa nueva */
+  seatsPerTable: number;
+
+  status: TournamentStatus;
+  currentLevel: number;
+  /** epoch ms en que termina el nivel actual — fuente de verdad del timer, la fija el dealer */
+  levelEndsAt: number | null;
+  /** epoch ms restante congelado cuando el dealer pausa el timer */
+  pausedRemainingMs: number | null;
+
+  createdAt: number;
+}
+
+export interface TableSeatAssignment {
+  seat: number;
+  playerId: string | null;
+}
+
+export interface PokerTable {
+  id: string;
+  tournamentId: string;
+  name: string;
+  seats: TableSeatAssignment[];
+}
+
+export type TransactionType = "buyin" | "rebuy" | "addon" | "fine";
+
+export interface Transaction {
+  id: string;
+  tournamentId: string;
+  playerId: string;
+  type: TransactionType;
+  amount: number;
+  chipsAwarded?: number;
+  /** motivo de la multa, ej. "jugar fuera de turno" */
+  reason?: string;
+  createdAt: number;
+  /** uid del dealer/admin que registró el movimiento */
+  createdBy: string;
+}
+
+export type PlayerStatus = "active" | "eliminated";
+
+export interface Player {
+  id: string;
+  tournamentId: string;
+  uid: string;
+  displayName: string;
+  role: PlayerRole;
+  tableId: string | null;
+  seat: number | null;
+  chips: number;
+  status: PlayerStatus;
+  eliminatedAt?: number;
+  /** playerId de quien lo eliminó, para asignar el bounty */
+  eliminatedBy?: string;
+  eliminationOrder?: number;
+  /** ids de jugadores por los que cobró bounty */
+  bountiesWon: string[];
+  registeredAt: number;
+}
