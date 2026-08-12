@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  getPlayerInTournament,
-  getTournament,
   listPlayers,
   setPlayerRole,
+  subscribeToPlayer,
+  subscribeToTournament,
 } from "@/lib/tournaments";
 import type { Player, TournamentSettings } from "@/types/tournament";
 import {
@@ -20,7 +20,9 @@ import {
   IconCheck,
   IconCopy,
   IconUsers,
+  LinkButton,
 } from "@/components/ui";
+import { TimerCard } from "@/components/timer";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Dueño del torneo",
@@ -62,14 +64,31 @@ export default function TorneoDetallePage({
     setPlayers(await listPlayers(id));
   };
 
+  // Torneo y jugador en vivo: así el timer, el estado (pausado/en curso) y
+  // un cambio de rol se ven al instante en todos los celulares.
   useEffect(() => {
     if (!profile) return;
-    Promise.all([getTournament(id), getPlayerInTournament(id, profile.uid)])
-      .then(([t, p]) => {
-        setTournament(t);
-        setPlayer(p);
-      })
-      .finally(() => setFetching(false));
+    let tournamentLoaded = false;
+    let playerLoaded = false;
+    const maybeStopLoading = () => {
+      if (tournamentLoaded && playerLoaded) setFetching(false);
+    };
+
+    const unsubTournament = subscribeToTournament(id, (t) => {
+      setTournament(t);
+      tournamentLoaded = true;
+      maybeStopLoading();
+    });
+    const unsubPlayer = subscribeToPlayer(id, profile.uid, (p) => {
+      setPlayer(p);
+      playerLoaded = true;
+      maybeStopLoading();
+    });
+
+    return () => {
+      unsubTournament();
+      unsubPlayer();
+    };
   }, [id, profile]);
 
   const isOwner = tournament?.ownerUid === profile?.uid;
@@ -139,13 +158,20 @@ export default function TorneoDetallePage({
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
       <div className="w-full max-w-md mx-auto flex flex-col items-center gap-6">
-        <Link
-          href="/panel"
-          className="flex items-center gap-1.5 text-sm text-pp-brown/60 hover:text-pp-brown self-start"
-        >
-          <IconArrowLeft />
-          Mis torneos
-        </Link>
+        <div className="flex items-center justify-between w-full">
+          <Link
+            href="/panel"
+            className="flex items-center gap-1.5 text-sm text-pp-brown/60 hover:text-pp-brown"
+          >
+            <IconArrowLeft />
+            Mis torneos
+          </Link>
+          {isOwner && (
+            <LinkButton href={`/torneo/${id}/editar`} variant="ghost" size="sm">
+              Editar
+            </LinkButton>
+          )}
+        </div>
 
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-display text-3xl text-pp-green-dark leading-tight">
@@ -155,6 +181,8 @@ export default function TorneoDetallePage({
             {ROLE_LABEL[effectiveRole] ?? effectiveRole}
           </Badge>
         </div>
+
+        <TimerCard tournament={tournament} isDealer={isDealer} />
 
         {isDealer && (
           <Card className="flex flex-col items-center gap-4 text-center">
@@ -230,8 +258,8 @@ export default function TorneoDetallePage({
         )}
 
         <Card className="border-dashed text-center text-pp-brown/70 text-sm">
-          Acá van a vivir el timer, las mesas, las recompras y el bote. Esta
-          pantalla se construye en la próxima fase.
+          Las mesas, las recompras y el bote se construyen en la próxima
+          fase.
         </Card>
       </div>
     </div>

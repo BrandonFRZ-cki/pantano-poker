@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   setDoc,
   updateDoc,
@@ -148,12 +149,118 @@ export async function getTournament(
   return snap.exists() ? (snap.data() as TournamentSettings) : null;
 }
 
+/**
+ * Se suscribe a los cambios del torneo en vivo: así el timer y el estado
+ * (pausado, nivel actual) se actualizan en el celular de todos sin que
+ * nadie tenga que refrescar la página.
+ */
+export function subscribeToTournament(
+  tournamentId: string,
+  onChange: (tournament: TournamentSettings | null) => void
+): () => void {
+  return onSnapshot(doc(db, "tournaments", tournamentId), (snap) => {
+    onChange(snap.exists() ? (snap.data() as TournamentSettings) : null);
+  });
+}
+
+/** Arranca el torneo: pasa a "en curso" y pone en marcha el nivel 1. */
+export async function startTournament(
+  tournament: TournamentSettings
+): Promise<void> {
+  const firstLevel = tournament.blindStructure[0];
+  if (!firstLevel) return;
+
+  await updateDoc(doc(db, "tournaments", tournament.id), {
+    status: "in_progress",
+    currentLevel: 1,
+    levelEndsAt: Date.now() + firstLevel.durationMinutes * 60_000,
+    pausedRemainingMs: null,
+  });
+}
+
+/** Pausa el timer, guardando cuánto tiempo le quedaba al nivel actual. */
+export async function pauseTournament(
+  tournament: TournamentSettings
+): Promise<void> {
+  if (!tournament.levelEndsAt) return;
+  const remaining = Math.max(tournament.levelEndsAt - Date.now(), 0);
+
+  await updateDoc(doc(db, "tournaments", tournament.id), {
+    status: "paused",
+    levelEndsAt: null,
+    pausedRemainingMs: remaining,
+  });
+}
+
+/** Reanuda el timer desde el tiempo que le quedaba cuando se pausó. */
+export async function resumeTournament(
+  tournament: TournamentSettings
+): Promise<void> {
+  const remaining = tournament.pausedRemainingMs ?? 0;
+
+  await updateDoc(doc(db, "tournaments", tournament.id), {
+    status: "in_progress",
+    levelEndsAt: Date.now() + remaining,
+    pausedRemainingMs: null,
+  });
+}
+
+/** Salta a un nivel específico de la estructura de ciegas (siguiente o anterior). */
+export async function goToLevel(
+  tournament: TournamentSettings,
+  levelNumber: number
+): Promise<void> {
+  const clamped = Math.min(
+    Math.max(levelNumber, 1),
+    tournament.blindStructure.length
+  );
+  const level = tournament.blindStructure[clamped - 1];
+  if (!level) return;
+
+  await updateDoc(doc(db, "tournaments", tournament.id), {
+    status: "in_progress",
+    currentLevel: clamped,
+    levelEndsAt: Date.now() + level.durationMinutes * 60_000,
+    pausedRemainingMs: null,
+  });
+}
+
+export async function finishTournament(tournamentId: string): Promise<void> {
+  await updateDoc(doc(db, "tournaments", tournamentId), {
+    status: "finished",
+    levelEndsAt: null,
+    pausedRemainingMs: null,
+  });
+}
+
+/** Actualiza la configuración de un torneo ya creado (no toca timer ni jugadores). */
+export async function updateTournamentSettings(
+  tournamentId: string,
+  input: CreateTournamentInput
+): Promise<void> {
+  await updateDoc(doc(db, "tournaments", tournamentId), { ...input });
+}
+
 export async function getPlayerInTournament(
   tournamentId: string,
   uid: string
 ): Promise<Player | null> {
   const snap = await getDoc(doc(db, "tournaments", tournamentId, "players", uid));
   return snap.exists() ? (snap.data() as Player) : null;
+}
+
+/** Se suscribe al documento del jugador (por si el dueño le cambia el rol en vivo). */
+export function subscribeToPlayer(
+  tournamentId: string,
+  uid: string,
+  onChange: (player: Player | null) => void
+): () => void {
+  return onSnapshot(
+    doc(db, "tournaments", tournamentId, "players", uid),
+    (snap) => {
+      onChange(snap.exists() ? (snap.data() as Player) : null);
+    }
+  );
 }
 
 /** Trae los torneos de un usuario a partir de su lista de ids guardada en el perfil. */
