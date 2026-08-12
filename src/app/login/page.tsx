@@ -28,7 +28,7 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
     } catch {
-      setError("No se pudo iniciar sesión con Google. Probá de nuevo.");
+      setError("No se pudo iniciar sesión con Google. Inténtalo de nuevo.");
     }
   };
 
@@ -37,7 +37,7 @@ export default function LoginPage() {
     try {
       await signInAsGuest();
     } catch {
-      setError("No se pudo entrar como invitado. Probá de nuevo.");
+      setError("No se pudo entrar como invitado. Inténtalo de nuevo.");
     }
   };
 
@@ -48,7 +48,7 @@ export default function LoginPage() {
       await saveDisplayName(name);
       router.push("/panel");
     } catch {
-      setError("No se pudo guardar tu nombre. Probá de nuevo.");
+      setError("No se pudo guardar tu nombre. Inténtalo de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -70,8 +70,8 @@ export default function LoginPage() {
           Ingreso al torneo
         </h1>
         <p className="max-w-sm text-pp-brown/80">
-          Entrá con tu cuenta de Google. Después vas a poder elegir cómo
-          querés que se vea tu nombre en la mesa.
+          Ingresa con tu cuenta de Google. Después vas a poder elegir cómo
+          quieres que se vea tu nombre en la mesa.
         </p>
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button

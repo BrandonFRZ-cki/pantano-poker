@@ -33,7 +33,7 @@ function UnirseForm() {
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudo unir al torneo. Probá de nuevo."
+          : "No se pudo unir al torneo. Inténtalo de nuevo."
       );
     } finally {
       setSubmitting(false);
@@ -54,7 +54,7 @@ function UnirseForm() {
         Unirse a un torneo
       </h1>
       <p className="max-w-sm text-pp-brown/80">
-        Pedile el código al dealer, o abrí el link que te compartió.
+        Pídele el código al dealer, o abre el link que te compartió.
       </p>
       <form
         onSubmit={handleSubmit}

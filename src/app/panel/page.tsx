@@ -79,7 +79,7 @@ export default function PanelPage() {
         )}
         {tournaments?.length === 0 && (
           <p className="text-center text-pp-brown/60">
-            Todavía no estás en ningún torneo. Creá uno o unite con un
+            Todavía no estás en ningún torneo. Crea uno o únete con un
             código.
           </p>
         )}

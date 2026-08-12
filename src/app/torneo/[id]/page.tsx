@@ -81,7 +81,7 @@ export default function TorneoDetallePage({
     return (
       <div className="flex flex-col flex-1 items-center justify-center bg-pp-cream px-6 py-16 text-center gap-4">
         <p className="text-pp-brown/80">
-          No encontramos este torneo, o todavía no sos parte de él.
+          No encontramos este torneo, o todavía no eres parte de él.
         </p>
         <Link href="/panel" className="text-pp-green-dark underline">
           Volver a mis torneos
@@ -171,7 +171,7 @@ export default function TorneoDetallePage({
               >
                 <span className="text-sm text-pp-brown">
                   {p.displayName}
-                  {p.uid === tournament.ownerUid && " (vos)"}
+                  {p.uid === tournament.ownerUid && " (tú)"}
                 </span>
                 {p.uid !== tournament.ownerUid && (
                   <button

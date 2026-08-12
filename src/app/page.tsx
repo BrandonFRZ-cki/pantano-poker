@@ -23,8 +23,8 @@ export default function Home() {
       </div>
 
       <p className="max-w-sm text-pp-brown/80">
-        Torneo de poker en familia. Registrate, seguí el timer de ciegas y
-        llevá el control de fichas desde tu celular.
+        Torneo de poker en familia. Regístrate, sigue el timer de ciegas y
+        lleva el control de fichas desde tu celular.
       </p>
 
       <div className="flex flex-col gap-3 w-full max-w-xs mt-4">

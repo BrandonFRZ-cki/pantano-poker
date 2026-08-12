@@ -167,7 +167,7 @@ export default function NuevoTorneoPage() {
       );
       router.push(`/torneo/${id}`);
     } catch {
-      setError("No se pudo crear el torneo. Probá de nuevo.");
+      setError("No se pudo crear el torneo. Inténtalo de nuevo.");
     } finally {
       setSubmitting(false);
     }
@@ -381,7 +381,7 @@ export default function NuevoTorneoPage() {
               }
             >
               <option value="fixed">
-                Dealer fijo (vos elegís quién controla el timer)
+                Dealer fijo (tú eliges quién controla el timer)
               </option>
               <option value="rotating">
                 Dealer rotativo (cualquier jugador puede serlo)

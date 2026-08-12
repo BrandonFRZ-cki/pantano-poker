@@ -15,7 +15,7 @@ import {
   signOut,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { AppUser } from "@/types/tournament";
 
@@ -56,27 +56,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const profileRef = doc(db, "users", user.uid);
-      const snapshot = await getDoc(profileRef);
 
-      if (!snapshot.exists()) {
-        const newProfile: AppUser = {
-          uid: user.uid,
-          displayName: user.displayName ?? "Invitado",
-          photoURL: user.photoURL ?? undefined,
-          tournamentIds: [],
-        };
+      try {
+        const snapshot = await getDoc(profileRef);
 
-        await setDoc(profileRef, newProfile);
+        if (!snapshot.exists()) {
+          const newProfile: AppUser = {
+            uid: user.uid,
+            displayName: user.displayName ?? "Invitado",
+            photoURL: user.photoURL ?? undefined,
+            tournamentIds: [],
+          };
+
+          await setDoc(profileRef, newProfile);
+        }
+      } catch (err) {
+        // Si esto falla (ej. sin conexión un instante), seguimos: el
+        // listener de abajo reintenta la lectura, y saveDisplayName ya usa
+        // setDoc con merge, así que puede crear el documento si hiciera falta.
+        console.error("No se pudo crear el perfil inicial", err);
       }
 
       // A partir de acá seguimos los cambios en vivo (nombre, torneos en
       // los que participa), sin depender de otra lectura manual.
-      unsubscribeProfile = onSnapshot(profileRef, (snap) => {
-        if (snap.exists()) {
-          setProfile(snap.data() as AppUser);
+      unsubscribeProfile = onSnapshot(
+        profileRef,
+        (snap) => {
+          if (snap.exists()) {
+            setProfile(snap.data() as AppUser);
+          }
+          setLoading(false);
+        },
+        (err) => {
+          console.error("No se pudo escuchar el perfil", err);
+          setLoading(false);
         }
-        setLoading(false);
-      });
+      );
     });
 
     return () => {
@@ -102,9 +117,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const trimmed = name.trim();
     if (!trimmed) return;
 
-    await updateDoc(doc(db, "users", firebaseUser.uid), {
-      displayName: trimmed,
-    });
+    // setDoc con merge en vez de updateDoc: si por alguna razón el
+    // documento de perfil todavía no se había creado, esto lo crea en vez
+    // de fallar con "no existe".
+    await setDoc(
+      doc(db, "users", firebaseUser.uid),
+      {
+        uid: firebaseUser.uid,
+        displayName: trimmed,
+        tournamentIds: profile?.tournamentIds ?? [],
+      },
+      { merge: true }
+    );
     setProfile((prev) => (prev ? { ...prev, displayName: trimmed } : prev));
   };
 
