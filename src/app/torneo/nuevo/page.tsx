@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { createTournament } from "@/lib/tournaments";
@@ -53,7 +54,14 @@ export default function NuevoTorneoPage() {
 
   return (
     <div className="flex flex-col flex-1 items-center bg-pp-cream px-6 py-12 gap-8">
-      <div className="text-center max-w-md">
+      <div className="text-center max-w-md flex flex-col items-center gap-2">
+        <Image
+          src="/icons/logo.svg"
+          alt="Pantano Poker"
+          width={48}
+          height={48}
+          unoptimized
+        />
         <h1 className="font-display text-2xl text-pp-green-dark">
           Crear torneo
         </h1>
@@ -79,7 +87,7 @@ export default function NuevoTorneoPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md flex flex-col gap-8"
+        className="w-full max-w-lg flex flex-col gap-6"
       >
         <TournamentFormFields form={form} setForm={setForm} />
 

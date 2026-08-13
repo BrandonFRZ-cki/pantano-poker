@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -102,7 +103,7 @@ export default function EditarTorneoPage({
 
   return (
     <div className="flex flex-col flex-1 items-center bg-pp-cream px-6 py-12 gap-8">
-      <div className="w-full max-w-md flex flex-col items-center gap-2 text-center">
+      <div className="w-full max-w-lg flex flex-col items-center gap-2 text-center">
         <Link
           href={`/torneo/${id}`}
           className="flex items-center gap-1.5 text-sm text-pp-brown/60 hover:text-pp-brown self-start"
@@ -110,6 +111,13 @@ export default function EditarTorneoPage({
           <IconArrowLeft />
           Volver al torneo
         </Link>
+        <Image
+          src="/icons/logo.svg"
+          alt="Pantano Poker"
+          width={48}
+          height={48}
+          unoptimized
+        />
         <h1 className="font-display text-2xl text-pp-green-dark">
           Editar torneo
         </h1>
@@ -117,7 +125,7 @@ export default function EditarTorneoPage({
 
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md flex flex-col gap-8"
+        className="w-full max-w-lg flex flex-col gap-6"
       >
         <TournamentFormFields form={form} setForm={setFormSafe} />
 

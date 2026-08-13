@@ -97,7 +97,9 @@ export const PANTANO_DEFAULTS = {
   startingStack: PANTANO_STARTING_STACK,
   addonStack: PANTANO_ADDON_STACK,
   blindStructure: PANTANO_BLIND_STRUCTURE,
-  rebuyDeadlineMinutes: 90,
+  // Nivel 6 es el receso (10pm): última recompra/reingreso y ventana de addon.
+  rebuyUntilLevel: 6,
+  addonLevel: 6,
   seatsPerTable: 9,
   dealerMode: "fixed" as const,
 };

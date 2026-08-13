@@ -12,7 +12,11 @@ const PLACE_LABEL: Record<number, string> = {
   4: "4º puesto",
 };
 
-/** Tarjeta pública: bote total y cuánto le toca a cada puesto. */
+/**
+ * Tarjeta pública: bote total y cuánto le toca a cada puesto. Se muestra
+ * recién cuando ya no se aceptan recompras ni addon (ahí se sabe cómo quedó
+ * la burbuja de premios); antes de eso el bote todavía puede crecer.
+ */
 export function PrizesCard({
   tournament,
   players,
@@ -24,6 +28,27 @@ export function PrizesCard({
 }) {
   const registered = players.some((p) => p.buyInAt);
   if (!registered) return null;
+
+  // Torneos creados antes de estos campos: se asume que seguían abiertos
+  // en cualquier nivel.
+  const rebuyUntilLevel = tournament.rebuyUntilLevel ?? tournament.blindStructure.length;
+  const addonLevel = tournament.addonLevel ?? 1;
+  const entriesClosed =
+    tournament.status === "finished" ||
+    tournament.currentLevel > Math.max(rebuyUntilLevel, addonLevel);
+
+  if (!entriesClosed) {
+    const closeLevel = Math.max(rebuyUntilLevel, addonLevel);
+    return (
+      <Card className="flex flex-col items-center gap-2 text-center border-dashed">
+        <p className="text-sm font-medium text-pp-brown/70">Bote y premios</p>
+        <p className="text-sm text-pp-brown/60">
+          El bote todavía puede crecer: se muestra cuando cierren las
+          recompras y el addon (nivel {closeLevel}).
+        </p>
+      </Card>
+    );
+  }
 
   const pot = computePot(tournament, players, transactions);
 

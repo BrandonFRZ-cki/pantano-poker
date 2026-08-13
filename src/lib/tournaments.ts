@@ -51,7 +51,8 @@ export interface CreateTournamentInput {
   startingStack: ChipDenominations;
   addonStack: ChipDenominations;
   blindStructure: BlindLevel[];
-  rebuyDeadlineMinutes: number;
+  rebuyUntilLevel: number;
+  addonLevel: number;
   seatsPerTable: number;
   dealerMode: "fixed" | "rotating";
 }

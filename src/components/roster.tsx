@@ -36,6 +36,12 @@ export function RegistrationCard({
   // Torneos creados antes de esta función todavía no tienen houseRules en
   // Firestore; se trata como lista vacía hasta que el dueño edite el torneo.
   const houseRules = tournament.houseRules ?? [];
+  // Mismo criterio para rebuyUntilLevel/addonLevel: si el torneo es viejo y
+  // no los tiene, se asume que recompra/addon siguen abiertos siempre.
+  const rebuyUntilLevel = tournament.rebuyUntilLevel ?? tournament.blindStructure.length;
+  const addonLevel = tournament.addonLevel ?? 1;
+  const rebuysOpen = tournament.currentLevel <= rebuyUntilLevel;
+  const addonOpen = tournament.currentLevel >= addonLevel;
 
   const run = async (uid: string, action: () => Promise<void>) => {
     setBusyUid(uid);
@@ -150,18 +156,24 @@ export function RegistrationCard({
                     </Button>
                   ) : p.status === "eliminated" ? (
                     <>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() =>
-                          run(p.uid, () =>
-                            registerRebuy(tournament, p.uid, actingUid)
-                          )
-                        }
-                      >
-                        Recompra (reingresa)
-                      </Button>
+                      {rebuysOpen ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() =>
+                            run(p.uid, () =>
+                              registerRebuy(tournament, p.uid, actingUid)
+                            )
+                          }
+                        >
+                          Recompra (reingresa)
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-pp-brown/40 self-center">
+                          Recompras cerradas (nivel {rebuyUntilLevel})
+                        </span>
+                      )}
                       {isLastElimination && (
                         <Button
                           variant="ghost"
@@ -182,14 +194,18 @@ export function RegistrationCard({
                       <Button
                         variant="secondary"
                         size="sm"
-                        disabled={busy || p.usedAddon}
+                        disabled={busy || p.usedAddon || !addonOpen}
                         onClick={() =>
                           run(p.uid, () =>
                             registerAddon(tournament, p.uid, actingUid)
                           )
                         }
                       >
-                        {p.usedAddon ? "Addon ✓" : "Addon"}
+                        {p.usedAddon
+                          ? "Addon ✓"
+                          : addonOpen
+                            ? "Addon"
+                            : `Addon (nivel ${addonLevel})`}
                       </Button>
                       <Button
                         variant="ghost"

@@ -19,7 +19,8 @@ export interface TournamentFormState {
   startingStack: ChipDenominations;
   addonStack: ChipDenominations;
   blindStructure: BlindLevel[];
-  rebuyDeadlineMinutes: number;
+  rebuyUntilLevel: number;
+  addonLevel: number;
   seatsPerTable: number;
   dealerMode: "fixed" | "rotating";
 }
@@ -40,7 +41,8 @@ export const BLANK_TOURNAMENT_STATE: TournamentFormState = {
   blindStructure: [
     { level: 1, smallBlind: 25, bigBlind: 50, ante: 0, durationMinutes: 15 },
   ],
-  rebuyDeadlineMinutes: 90,
+  rebuyUntilLevel: 1,
+  addonLevel: 1,
   seatsPerTable: 9,
   dealerMode: "fixed",
 };
@@ -59,7 +61,8 @@ export const PANTANO_TOURNAMENT_STATE: TournamentFormState = {
   startingStack: PANTANO_DEFAULTS.startingStack,
   addonStack: PANTANO_DEFAULTS.addonStack,
   blindStructure: PANTANO_DEFAULTS.blindStructure,
-  rebuyDeadlineMinutes: PANTANO_DEFAULTS.rebuyDeadlineMinutes,
+  rebuyUntilLevel: PANTANO_DEFAULTS.rebuyUntilLevel,
+  addonLevel: PANTANO_DEFAULTS.addonLevel,
   seatsPerTable: PANTANO_DEFAULTS.seatsPerTable,
   dealerMode: PANTANO_DEFAULTS.dealerMode,
 };
@@ -80,7 +83,8 @@ export function formStateToInput(
     startingStack: form.startingStack,
     addonStack: form.addonStack,
     blindStructure: form.blindStructure,
-    rebuyDeadlineMinutes: form.rebuyDeadlineMinutes,
+    rebuyUntilLevel: form.rebuyUntilLevel,
+    addonLevel: form.addonLevel,
     seatsPerTable: form.seatsPerTable,
     dealerMode: form.dealerMode,
   };
@@ -103,7 +107,10 @@ export function tournamentToFormState(
     startingStack: t.startingStack,
     addonStack: t.addonStack,
     blindStructure: t.blindStructure,
-    rebuyDeadlineMinutes: t.rebuyDeadlineMinutes,
+    // Torneos creados antes de esta función no tienen estos campos: se
+    // asume que las recompras/addon seguían abiertas en cualquier nivel.
+    rebuyUntilLevel: t.rebuyUntilLevel ?? t.blindStructure.length,
+    addonLevel: t.addonLevel ?? 1,
     seatsPerTable: t.seatsPerTable,
     dealerMode: t.dealerMode,
   };

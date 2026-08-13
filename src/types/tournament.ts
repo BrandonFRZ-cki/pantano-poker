@@ -63,8 +63,10 @@ export interface TournamentSettings {
   addonStack: ChipDenominations;
 
   blindStructure: BlindLevel[];
-  /** Minutos desde el inicio del torneo en que cierran las recompras */
-  rebuyDeadlineMinutes: number;
+  /** Último nivel (inclusive) en el que todavía se aceptan recompras/reingresos */
+  rebuyUntilLevel: number;
+  /** Nivel en el que se habilita el addon (normalmente el del receso) */
+  addonLevel: number;
   /** Jugadores por mesa antes de necesitar balanceo/mesa nueva */
   seatsPerTable: number;
   /** "fixed": un dealer fijo. "rotating": el rol de dealer puede pasar entre jugadores */
