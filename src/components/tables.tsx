@@ -31,6 +31,11 @@ export function TablesCard({
     (p) => p.buyInAt && p.status === "active"
   ).length;
 
+  const counts = tables.map((t) => t.playerIds.length);
+  const imbalance =
+    counts.length > 1 ? Math.max(...counts) - Math.min(...counts) : 0;
+  const shortTable = tables.find((t) => t.playerIds.length === Math.min(...counts));
+
   const handleAssign = async () => {
     setAssigning(true);
     setError(null);
@@ -130,6 +135,23 @@ export function TablesCard({
           &quot;Balancear&quot; mueve solo a los jugadores necesarios;
           &quot;Rehacer&quot; vuelve a repartir a todos desde cero.
         </p>
+      )}
+
+      {isDealer && imbalance > 1 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-300/60 px-4 py-2.5">
+          <p className="text-sm text-amber-900">
+            {shortTable?.name ?? "Una mesa"} quedó con menos jugadores que
+            las demás — conviene balancear antes de la próxima mano.
+          </p>
+          <button
+            type="button"
+            disabled={balancing}
+            onClick={handleBalance}
+            className="text-sm text-amber-900 underline shrink-0 disabled:opacity-50"
+          >
+            Balancear ahora
+          </button>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
