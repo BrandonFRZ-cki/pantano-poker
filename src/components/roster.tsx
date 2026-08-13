@@ -9,6 +9,7 @@ import {
   registerFine,
   registerRebuy,
   undoLastElimination,
+  updatePlayerChips,
 } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { formatChips } from "@/lib/format";
@@ -31,6 +32,8 @@ export function RegistrationCard({
   const [eliminatorChoice, setEliminatorChoice] = useState("");
   const [finingUid, setFiningUid] = useState<string | null>(null);
   const [fineReason, setFineReason] = useState("");
+  const [editingStackUid, setEditingStackUid] = useState<string | null>(null);
+  const [stackValue, setStackValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const chipsPerRebuy = chipsValue(tournament.chipValues, tournament.startingStack);
   // Torneos creados antes de esta función todavía no tienen houseRules en
@@ -73,6 +76,28 @@ export function RegistrationCard({
       setBusyUid(null);
       setEliminatingUid(null);
       setEliminatorChoice("");
+    }
+  };
+
+  const confirmStack = async (targetUid: string) => {
+    const chips = Number(stackValue);
+    if (Number.isNaN(chips)) {
+      setError("Ingresa un número válido de fichas.");
+      return;
+    }
+    setBusyUid(targetUid);
+    setError(null);
+    try {
+      await updatePlayerChips(tournament.id, targetUid, chips);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err instanceof Error ? err.message : "No se pudo actualizar el stack."
+      );
+    } finally {
+      setBusyUid(null);
+      setEditingStackUid(null);
+      setStackValue("");
     }
   };
 
@@ -138,6 +163,18 @@ export function RegistrationCard({
                             .filter(Boolean)
                             .join(" · ")
                         : "Sin registrar"}
+                      {p.buyInAt && p.status === "active" && (
+                        <button
+                          type="button"
+                          className="ml-1.5 text-pp-green-dark/70 underline"
+                          onClick={() => {
+                            setEditingStackUid(p.uid);
+                            setStackValue(String(p.chips));
+                          }}
+                        >
+                          editar
+                        </button>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -307,6 +344,35 @@ export function RegistrationCard({
                     onClick={() => {
                       setFiningUid(null);
                       setFineReason("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
+              {editingStackUid === p.uid && (
+                <div className="flex items-center gap-2 bg-pp-brown/5 rounded-xl px-3 py-2">
+                  <span className="text-xs text-pp-brown/70">Fichas</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="flex-1 text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown"
+                    value={stackValue}
+                    onChange={(e) => setStackValue(e.target.value)}
+                  />
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => confirmStack(p.uid)}
+                  >
+                    Guardar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditingStackUid(null);
+                      setStackValue("");
                     }}
                   >
                     Cancelar

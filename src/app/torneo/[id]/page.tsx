@@ -35,6 +35,7 @@ import { TablesCard } from "@/components/tables";
 import { StandingsCard } from "@/components/standings";
 import { PrizesCard } from "@/components/prizes";
 import { FinesCard } from "@/components/fines";
+import { TabBar } from "@/components/tabbar";
 import { LoadingScreen } from "@/components/loading";
 import { formatChips } from "@/lib/format";
 
@@ -303,6 +304,8 @@ export default function TorneoDetallePage({
           </Card>
         )}
       </div>
+
+      <TabBar tournamentId={id} />
     </div>
   );
 }

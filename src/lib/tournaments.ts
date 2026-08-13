@@ -15,6 +15,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { computeBlindSeats, nextInTable } from "@/lib/table-order";
 import type {
   AppUser,
   BlindLevel,
@@ -535,10 +536,21 @@ export async function assignTables(
     tournamentId: tournament.id,
     name: `Mesa ${i + 1}`,
     playerIds: [],
+    buttonUid: null,
+    currentActorUid: null,
+    speakClockEndsAt: null,
+    speakClockPausedMs: null,
+    speakClockSeconds: 30,
   }));
 
   shuffled.forEach((player, index) => {
     tables[index % tableCount].playerIds.push(player.uid);
+  });
+
+  // El primer asiento de cada mesa arranca con el botón, para que "Mi mesa"
+  // ya tenga algo que mostrar antes de la primera "Siguiente mano".
+  tables.forEach((t) => {
+    t.buttonUid = t.playerIds[0] ?? null;
   });
 
   await Promise.all(
@@ -590,6 +602,116 @@ export async function movePlayerToTable(
 }
 
 /**
+ * Pasa a la siguiente mano en una mesa: mueve el botón al siguiente asiento
+ * y limpia el turno de habla y su reloj (arrancan de nuevo con "Iniciar
+ * reloj").
+ */
+export async function advanceButton(
+  tournamentId: string,
+  table: PokerTable
+): Promise<void> {
+  const next = nextInTable(table, table.buttonUid);
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+    buttonUid: next,
+    currentActorUid: null,
+    speakClockEndsAt: null,
+    speakClockPausedMs: null,
+  });
+}
+
+/** Arranca el reloj de habla en el primer jugador después de la ciega grande. */
+export async function startSpeakClock(
+  tournamentId: string,
+  table: PokerTable
+): Promise<void> {
+  const seconds = table.speakClockSeconds ?? 30;
+  const blinds = computeBlindSeats(table);
+  const firstActor = blinds ? nextInTable(table, blinds.bbUid) : table.playerIds[0] ?? null;
+
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+    currentActorUid: firstActor,
+    speakClockEndsAt: Date.now() + seconds * 1000,
+    speakClockPausedMs: null,
+  });
+}
+
+/** Pausa el reloj de habla (para contar fichas, armar un pozo de all-in, etc.). */
+export async function pauseSpeakClock(
+  tournamentId: string,
+  table: PokerTable
+): Promise<void> {
+  if (!table.speakClockEndsAt) return;
+  const remaining = Math.max(table.speakClockEndsAt - Date.now(), 0);
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+    speakClockEndsAt: null,
+    speakClockPausedMs: remaining,
+  });
+}
+
+/** Reanuda el reloj de habla desde donde se pausó. */
+export async function resumeSpeakClock(
+  tournamentId: string,
+  table: PokerTable
+): Promise<void> {
+  const remaining = table.speakClockPausedMs ?? (table.speakClockSeconds ?? 30) * 1000;
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+    speakClockEndsAt: Date.now() + remaining,
+    speakClockPausedMs: null,
+  });
+}
+
+/** Pasa el turno de habla al siguiente jugador de la mesa y reinicia el reloj. */
+export async function nextSpeaker(
+  tournamentId: string,
+  table: PokerTable
+): Promise<void> {
+  const seconds = table.speakClockSeconds ?? 30;
+  const next = nextInTable(table, table.currentActorUid);
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+    currentActorUid: next,
+    speakClockEndsAt: Date.now() + seconds * 1000,
+    speakClockPausedMs: null,
+  });
+}
+
+/** Cambia cuántos segundos dura el turno de cada jugador en esa mesa. */
+export async function setSpeakClockSeconds(
+  tournamentId: string,
+  tableId: string,
+  seconds: number
+): Promise<void> {
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", tableId), {
+    speakClockSeconds: seconds,
+  });
+}
+
+/** El dealer corrige a mano el stack de un jugador (conteo real en la mesa). */
+export async function updatePlayerChips(
+  tournamentId: string,
+  targetUid: string,
+  chips: number
+): Promise<void> {
+  await updateDoc(
+    doc(db, "tournaments", tournamentId, "players", targetUid),
+    { chips: Math.max(Math.round(chips), 0) }
+  );
+}
+
+/**
+ * El jugador muestra (o vuelve a ocultar) su propia mano. Nunca es
+ * obligatorio: cards=null la esconde de nuevo.
+ */
+export async function setRevealedHand(
+  tournamentId: string,
+  uid: string,
+  cards: string[] | null
+): Promise<void> {
+  await updateDoc(doc(db, "tournaments", tournamentId, "players", uid), {
+    revealedHand: cards && cards.length > 0 ? cards : null,
+  });
+}
+
+/**
  * Elimina a un jugador. Si se indica quién lo eliminó, le suma el bounty.
  * Lo saca de su mesa (queda fuera del juego).
  */
@@ -625,9 +747,25 @@ export async function eliminatePlayer(
 
   const table = tables.find((t) => t.playerIds.includes(eliminatedUid));
   if (table) {
+    // Una eliminación corta la mano en seco: se pausa el reloj de habla de
+    // esa mesa (el dealer lo reanuda cuando esté listo) y, si el eliminado
+    // tenía el botón o el turno, se limpia para que el dealer lo reasigne.
+    const remaining = table.speakClockEndsAt
+      ? Math.max(table.speakClockEndsAt - Date.now(), 0)
+      : (table.speakClockPausedMs ?? null);
+
     await updateDoc(
       doc(db, "tournaments", tournament.id, "tables", table.id),
-      { playerIds: table.playerIds.filter((uid) => uid !== eliminatedUid) }
+      {
+        playerIds: table.playerIds.filter((uid) => uid !== eliminatedUid),
+        buttonUid: table.buttonUid === eliminatedUid ? null : table.buttonUid,
+        currentActorUid:
+          table.currentActorUid === eliminatedUid
+            ? null
+            : table.currentActorUid,
+        speakClockEndsAt: null,
+        speakClockPausedMs: remaining,
+      }
     );
   }
 

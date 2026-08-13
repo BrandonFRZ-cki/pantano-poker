@@ -96,6 +96,17 @@ export interface PokerTable {
   name: string;
   /** uids en orden de asiento: el índice 0 es el asiento 1, etc. */
   playerIds: string[];
+
+  /** uid de quien tiene el botón de dealer en la mano actual de esta mesa */
+  buttonUid?: string | null;
+  /** uid de quien tiene el turno de hablar ahora mismo */
+  currentActorUid?: string | null;
+  /** epoch ms en que se acaba el tiempo del jugador actual (null si está pausado) */
+  speakClockEndsAt?: number | null;
+  /** ms restantes congelados cuando el dealer pausa el reloj de habla */
+  speakClockPausedMs?: number | null;
+  /** segundos que dura el turno de cada jugador (configurable, 30 por defecto) */
+  speakClockSeconds?: number;
 }
 
 export type TransactionType = "buyin" | "rebuy" | "addon" | "fine";
@@ -141,4 +152,9 @@ export interface Player {
   /** ids de jugadores por los que cobró bounty */
   bountiesWon: string[];
   registeredAt: number;
+  /**
+   * Sus 2 cartas si decidió mostrarlas (ej. ["As","Kd"]), opcional y nunca
+   * obligatorio. null/undefined = las tiene ocultas.
+   */
+  revealedHand?: string[] | null;
 }
