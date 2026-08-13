@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, use, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   advanceButton,
@@ -30,13 +30,15 @@ function formatClock(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default function MesaPage({
+function MesaContent({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const viewAsUid = searchParams.get("viewAs");
   const { firebaseUser, profile, loading } = useAuth();
 
   const [tournament, setTournament] = useState<TournamentSettings | null>(
@@ -86,8 +88,17 @@ export default function MesaPage({
   const isOwner = tournament?.ownerUid === profile?.uid;
   const isDealer = !!tournament?.dealerUids.includes(profile?.uid ?? "");
 
-  const myTable = player?.tableId
-    ? tables.find((t) => t.id === player.tableId)
+  // El dueño puede entrar en modo "ver como" un jugador temporal (sin
+  // celular propio) para manejarle la mesa. Solo funciona si de verdad es
+  // dealer de este torneo, para que nadie más lo pueda forzar por URL.
+  const viewedUid = isDealer && viewAsUid ? viewAsUid : profile?.uid;
+  const viewedPlayer =
+    viewedUid === profile?.uid
+      ? player
+      : players.find((p) => p.uid === viewedUid) ?? player;
+
+  const myTable = viewedPlayer?.tableId
+    ? tables.find((t) => t.id === viewedPlayer.tableId)
     : null;
   const table =
     tables.find((t) => t.id === selectedTableId) ?? myTable ?? tables[0] ?? null;
@@ -153,6 +164,20 @@ export default function MesaPage({
           Mi mesa
         </h1>
 
+        {viewAsUid && isDealer && viewedPlayer && (
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-pp-green-light/30 border border-pp-green-mid/30 px-4 py-2.5">
+            <p className="text-sm text-pp-green-dark">
+              Viendo como {viewedPlayer.displayName} (modo dealer)
+            </p>
+            <Link
+              href={`/torneo/${id}/mesa`}
+              className="text-xs text-pp-green-dark/60 hover:text-pp-green-dark underline shrink-0"
+            >
+              Volver a mi vista
+            </Link>
+          </div>
+        )}
+
         {isDealer && tables.length > 1 && (
           <label className="text-sm text-pp-brown/70 text-center">
             Mesa a mostrar
@@ -185,7 +210,7 @@ export default function MesaPage({
               <SeatDiagram
                 table={table}
                 players={players}
-                currentUid={profile.uid}
+                currentUid={viewedUid ?? profile.uid}
               />
             </Card>
 
@@ -284,16 +309,27 @@ export default function MesaPage({
               {error && <p className="text-sm text-red-700">{error}</p>}
             </Card>
 
-            {player.status === "active" &&
-              table.playerIds.includes(player.uid) && (
+            {viewedPlayer &&
+              viewedPlayer.status === "active" &&
+              table.playerIds.includes(viewedPlayer.uid) && (
                 <HandPicker
-                  revealedHand={player.revealedHand}
-                  onSave={(cards) => setRevealedHand(id, player.uid, cards)}
+                  revealedHand={viewedPlayer.revealedHand}
+                  onSave={(cards) =>
+                    setRevealedHand(id, viewedPlayer.uid, cards)
+                  }
                 />
               )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+export default function MesaPage(props: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <MesaContent {...props} />
+    </Suspense>
   );
 }

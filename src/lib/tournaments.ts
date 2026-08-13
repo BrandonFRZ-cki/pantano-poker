@@ -109,6 +109,35 @@ export async function createTournament(
   return newDocRef.id;
 }
 
+/**
+ * Crea un jugador temporal (sin cuenta ni celular propio), para quien no
+ * tiene cómo unirse por su cuenta. Vive dentro de este torneo nomás: se
+ * borra junto con él, y el dueño lo maneja y lo puede ver "como" él desde
+ * Mi mesa.
+ */
+export async function createLocalPlayer(
+  tournamentId: string,
+  displayName: string
+): Promise<string> {
+  const ref = doc(collection(db, "tournaments", tournamentId, "players"));
+  const player: Player = {
+    id: ref.id,
+    tournamentId,
+    uid: ref.id,
+    displayName: displayName.trim() || "Jugador temporal",
+    role: "player",
+    tableId: null,
+    seat: null,
+    chips: 0,
+    status: "active",
+    bountiesWon: [],
+    registeredAt: Date.now(),
+    isLocal: true,
+  };
+  await setDoc(ref, player);
+  return ref.id;
+}
+
 /** Busca un torneo por su código corto y suma al usuario como jugador. */
 export async function joinTournamentByCode(
   code: string,

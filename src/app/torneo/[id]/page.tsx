@@ -266,6 +266,7 @@ export default function TorneoDetallePage({
                 players={players}
                 tables={tables}
                 actingUid={profile.uid}
+                isOwner={isOwner}
               />
             )}
 

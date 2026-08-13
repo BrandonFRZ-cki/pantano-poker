@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   chipsValue,
+  createLocalPlayer,
   eliminatePlayer,
   extraChipsValue,
   registerAddon,
@@ -14,7 +16,7 @@ import {
 } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { formatChips } from "@/lib/format";
-import { Avatar, Button, Card } from "@/components/ui";
+import { Avatar, Badge, Button, Card } from "@/components/ui";
 
 /** Tarjeta del dealer: registrar buy-in, recompra, addon, multas y eliminaciones. */
 export function RegistrationCard({
@@ -22,11 +24,13 @@ export function RegistrationCard({
   players,
   tables,
   actingUid,
+  isOwner,
 }: {
   tournament: TournamentSettings;
   players: Player[];
   tables: PokerTable[];
   actingUid: string;
+  isOwner: boolean;
 }) {
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [eliminatingUid, setEliminatingUid] = useState<string | null>(null);
@@ -35,6 +39,8 @@ export function RegistrationCard({
   const [fineReason, setFineReason] = useState("");
   const [editingStackUid, setEditingStackUid] = useState<string | null>(null);
   const [stackValue, setStackValue] = useState("");
+  const [newLocalName, setNewLocalName] = useState("");
+  const [creatingLocal, setCreatingLocal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const chipsPerRebuy =
     chipsValue(tournament.chipValues, tournament.startingStack) +
@@ -104,6 +110,23 @@ export function RegistrationCard({
     }
   };
 
+  const handleCreateLocal = async () => {
+    if (!newLocalName.trim()) return;
+    setCreatingLocal(true);
+    setError(null);
+    try {
+      await createLocalPlayer(tournament.id, newLocalName);
+      setNewLocalName("");
+    } catch (err) {
+      console.error(err);
+      setError(
+        err instanceof Error ? err.message : "No se pudo crear el jugador."
+      );
+    } finally {
+      setCreatingLocal(false);
+    }
+  };
+
   const confirmFine = async (targetUid: string) => {
     setBusyUid(targetUid);
     setError(null);
@@ -124,6 +147,25 @@ export function RegistrationCard({
       <p className="text-sm font-medium text-pp-brown/70">
         Registro de fichas
       </p>
+
+      {isOwner && (
+        <div className="flex items-center gap-2 bg-pp-brown/5 rounded-xl px-3 py-2">
+          <input
+            className="flex-1 text-sm border border-pp-green-mid/30 rounded-full px-3 py-1.5 bg-white text-pp-brown outline-none focus:border-pp-green-dark"
+            placeholder="Nombre del jugador sin celular"
+            value={newLocalName}
+            onChange={(e) => setNewLocalName(e.target.value)}
+          />
+          <Button
+            size="sm"
+            disabled={creatingLocal || !newLocalName.trim()}
+            onClick={handleCreateLocal}
+          >
+            {creatingLocal ? "Creando…" : "+ Agregar"}
+          </Button>
+        </div>
+      )}
+
       {players.length === 0 && (
         <p className="text-sm text-pp-brown/60 text-center py-2">
           Todavía no se unió nadie.
@@ -156,6 +198,9 @@ export function RegistrationCard({
                       className={`text-sm ${p.status === "eliminated" ? "text-red-800" : "text-pp-brown"}`}
                     >
                       {p.displayName}
+                      {p.isLocal && (
+                        <Badge tone="neutral">sin cuenta</Badge>
+                      )}
                       {p.status === "eliminated" && (
                         <span className="text-red-700/70">
                           {" "}
@@ -164,6 +209,14 @@ export function RegistrationCard({
                         </span>
                       )}
                     </p>
+                    {isOwner && p.isLocal && (
+                      <Link
+                        href={`/torneo/${tournament.id}/mesa?viewAs=${p.uid}`}
+                        className="text-xs text-pp-green-dark/70 underline"
+                      >
+                        Ver mesa como {p.displayName}
+                      </Link>
+                    )}
                     <p className="text-xs text-pp-brown/50">
                       {p.buyInAt
                         ? [

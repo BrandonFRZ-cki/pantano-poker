@@ -175,6 +175,12 @@ export interface Player {
   bountiesWon: string[];
   registeredAt: number;
   /**
+   * true si es un jugador temporal creado por el dueño (sin cuenta ni
+   * celular propio): vive solo dentro de este torneo y se borra junto con
+   * él. El dueño puede manejarlo y ver la app "como" él.
+   */
+  isLocal?: boolean;
+  /**
    * Sus 2 cartas si decidió mostrarlas (ej. ["As","Kd"]), opcional y nunca
    * obligatorio. null/undefined = las tiene ocultas.
    */
