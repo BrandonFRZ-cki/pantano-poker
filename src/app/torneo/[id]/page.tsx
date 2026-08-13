@@ -8,9 +8,10 @@ import {
   setPlayerRole,
   subscribeToPlayer,
   subscribeToPlayers,
+  subscribeToTables,
   subscribeToTournament,
 } from "@/lib/tournaments";
-import type { Player, TournamentSettings } from "@/types/tournament";
+import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import {
   Avatar,
   Badge,
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui";
 import { TimerCard } from "@/components/timer";
 import { RegistrationCard } from "@/components/roster";
+import { TablesCard } from "@/components/tables";
 import { formatChips } from "@/lib/format";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -52,6 +54,7 @@ export default function TorneoDetallePage({
   );
   const [player, setPlayer] = useState<Player | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [tables, setTables] = useState<PokerTable[]>([]);
   const [fetching, setFetching] = useState(true);
   const [copied, setCopied] = useState(false);
   const [savingUid, setSavingUid] = useState<string | null>(null);
@@ -92,12 +95,10 @@ export default function TorneoDetallePage({
   const isOwner = tournament?.ownerUid === profile?.uid;
   const isDealer = !!tournament?.dealerUids.includes(profile?.uid ?? "");
 
-  // Lista de jugadores en vivo, solo la necesitan quienes pueden actuar
-  // sobre ella (dealers para fichas, dueño para roles).
-  useEffect(() => {
-    if (!isDealer) return;
-    return subscribeToPlayers(id, setPlayers);
-  }, [isDealer, id]);
+  // Lista de jugadores y mesas en vivo: todos la necesitan para ver quién
+  // está en su mesa, no solo el dealer.
+  useEffect(() => subscribeToPlayers(id, setPlayers), [id]);
+  useEffect(() => subscribeToTables(id, setTables), [id]);
 
   if (loading || !firebaseUser || !profile || fetching) {
     return (
@@ -216,6 +217,14 @@ export default function TorneoDetallePage({
           />
         )}
 
+        <TablesCard
+          tournament={tournament}
+          players={players}
+          tables={tables}
+          isDealer={isDealer}
+          currentUid={profile.uid}
+        />
+
         {isOwner && (
           <Card className="flex flex-col gap-4">
             <div className="flex items-center gap-2 text-pp-brown/70">
@@ -264,7 +273,7 @@ export default function TorneoDetallePage({
         )}
 
         <Card className="border-dashed text-center text-pp-brown/70 text-sm">
-          Las mesas, las eliminaciones y el bote se construyen en la próxima
+          Las eliminaciones, el bounty y el bote se construyen en la próxima
           fase.
         </Card>
       </div>

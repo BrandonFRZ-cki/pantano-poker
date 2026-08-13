@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  chipsValue,
   registerAddon,
   registerBuyIn,
   registerFine,
@@ -22,6 +23,7 @@ export function RegistrationCard({
   actingUid: string;
 }) {
   const [busyUid, setBusyUid] = useState<string | null>(null);
+  const chipsPerRebuy = chipsValue(tournament.chipValues, tournament.startingStack);
 
   const run = async (uid: string, action: () => Promise<void>) => {
     setBusyUid(uid);
@@ -56,7 +58,15 @@ export function RegistrationCard({
                   <p className="text-sm text-pp-brown">{p.displayName}</p>
                   <p className="text-xs text-pp-brown/50">
                     {p.buyInAt
-                      ? `${formatChips(p.chips)} fichas`
+                      ? [
+                          `${formatChips(p.chips)} fichas`,
+                          p.rebuyCount
+                            ? `${p.rebuyCount} recompra${p.rebuyCount > 1 ? "s" : ""} (${formatChips(p.rebuyCount * chipsPerRebuy)})`
+                            : null,
+                          p.usedAddon ? "addon" : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
                       : "Sin registrar"}
                   </p>
                 </div>

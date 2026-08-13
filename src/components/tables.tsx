@@ -1,0 +1,131 @@
+"use client";
+
+import { useState } from "react";
+import { assignTables, movePlayerToTable } from "@/lib/tournaments";
+import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
+import { Avatar, Button, Card } from "@/components/ui";
+
+function nameFor(players: Player[], uid: string): string {
+  return players.find((p) => p.uid === uid)?.displayName ?? "…";
+}
+
+export function TablesCard({
+  tournament,
+  players,
+  tables,
+  isDealer,
+  currentUid,
+}: {
+  tournament: TournamentSettings;
+  players: Player[];
+  tables: PokerTable[];
+  isDealer: boolean;
+  currentUid: string;
+}) {
+  const [assigning, setAssigning] = useState(false);
+  const [movingUid, setMovingUid] = useState<string | null>(null);
+
+  const eligibleCount = players.filter(
+    (p) => p.buyInAt && p.status === "active"
+  ).length;
+
+  const handleAssign = async () => {
+    setAssigning(true);
+    try {
+      await assignTables(tournament, players);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleMove = async (playerUid: string, targetTableId: string) => {
+    setMovingUid(playerUid);
+    try {
+      await movePlayerToTable(tournament.id, tables, playerUid, targetTableId);
+    } finally {
+      setMovingUid(null);
+    }
+  };
+
+  if (tables.length === 0) {
+    if (!isDealer) return null;
+    return (
+      <Card className="flex flex-col items-center gap-3 text-center">
+        <p className="text-sm text-pp-brown/70">
+          Todavía no armaste las mesas ({eligibleCount} jugador
+          {eligibleCount === 1 ? "" : "es"} con buy-in registrado)
+        </p>
+        <Button
+          size="sm"
+          disabled={assigning || eligibleCount === 0}
+          onClick={handleAssign}
+        >
+          {assigning ? "Armando…" : "Armar mesas"}
+        </Button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-pp-brown/70">Mesas</p>
+        {isDealer && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={assigning}
+            onClick={handleAssign}
+          >
+            {assigning ? "Rehaciendo…" : "Rehacer mesas"}
+          </Button>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {tables.map((table) => (
+          <div key={table.id}>
+            <p className="text-xs font-medium text-pp-brown/50 mb-2">
+              {table.name}
+            </p>
+            <div className="flex flex-col gap-2">
+              {table.playerIds.map((uid, index) => (
+                <div
+                  key={uid}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <Avatar name={nameFor(players, uid)} size={28} />
+                    <span className="text-sm text-pp-brown">
+                      Asiento {index + 1} · {nameFor(players, uid)}
+                      {uid === currentUid && (
+                        <span className="text-pp-brown/50"> (tú)</span>
+                      )}
+                    </span>
+                  </div>
+                  {isDealer && tables.length > 1 && (
+                    <select
+                      className="text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown/70"
+                      value={table.id}
+                      disabled={movingUid === uid}
+                      onChange={(e) => handleMove(uid, e.target.value)}
+                    >
+                      {tables.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              ))}
+              {table.playerIds.length === 0 && (
+                <p className="text-xs text-pp-brown/40">Sin jugadores</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}

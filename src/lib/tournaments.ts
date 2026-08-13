@@ -2,6 +2,7 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -19,6 +20,7 @@ import type {
   ChipDenominations,
   Player,
   PlayerRole,
+  PokerTable,
   TournamentSettings,
   Transaction,
   TransactionType,
@@ -315,7 +317,8 @@ export async function setPlayerRole(
   });
 }
 
-function chipsValue(
+/** Cuánto valen en fichas N unidades de cada color (buy-in, recompra o addon). */
+export function chipsValue(
   chipValues: ChipDenominations,
   counts: ChipDenominations
 ): number {
@@ -395,7 +398,7 @@ export async function registerRebuy(
 
   await updateDoc(
     doc(db, "tournaments", tournament.id, "players", targetUid),
-    { chips: increment(chipsAwarded) }
+    { chips: increment(chipsAwarded), rebuyCount: increment(1) }
   );
 }
 
@@ -437,4 +440,104 @@ export async function registerFine(
     actingUid,
     reason ? { reason } : undefined
   );
+}
+
+/** Lista de mesas en vivo, ordenadas por nombre. */
+export function subscribeToTables(
+  tournamentId: string,
+  onChange: (tables: PokerTable[]) => void
+): () => void {
+  return onSnapshot(
+    collection(db, "tournaments", tournamentId, "tables"),
+    (snap) => {
+      const tables = snap.docs
+        .map((d) => d.data() as PokerTable)
+        .sort((a, b) => a.name.localeCompare(b.name, "es"));
+      onChange(tables);
+    }
+  );
+}
+
+/**
+ * Arma (o rehace desde cero) las mesas del torneo: reparte a los jugadores
+ * activos y ya registrados en tantas mesas como haga falta según
+ * seatsPerTable, en orden aleatorio. Útil también para rebalancear después
+ * de varias eliminaciones.
+ */
+export async function assignTables(
+  tournament: TournamentSettings,
+  players: Player[]
+): Promise<void> {
+  const eligible = players.filter((p) => p.buyInAt && p.status === "active");
+
+  const existing = await getDocs(
+    collection(db, "tournaments", tournament.id, "tables")
+  );
+  await Promise.all(existing.docs.map((d) => deleteDoc(d.ref)));
+
+  if (eligible.length === 0) return;
+
+  const shuffled = [...eligible].sort(() => Math.random() - 0.5);
+  const tableCount = Math.max(
+    Math.ceil(shuffled.length / tournament.seatsPerTable),
+    1
+  );
+
+  const tables: PokerTable[] = Array.from({ length: tableCount }, (_, i) => ({
+    id: `mesa-${i + 1}`,
+    tournamentId: tournament.id,
+    name: `Mesa ${i + 1}`,
+    playerIds: [],
+  }));
+
+  shuffled.forEach((player, index) => {
+    tables[index % tableCount].playerIds.push(player.uid);
+  });
+
+  await Promise.all(
+    tables.map((t) =>
+      setDoc(doc(db, "tournaments", tournament.id, "tables", t.id), t)
+    )
+  );
+
+  await Promise.all(
+    tables.flatMap((table) =>
+      table.playerIds.map((uid, seatIndex) =>
+        updateDoc(doc(db, "tournaments", tournament.id, "players", uid), {
+          tableId: table.id,
+          seat: seatIndex + 1,
+        })
+      )
+    )
+  );
+}
+
+/** Mueve manualmente a un jugador a otra mesa (se le asigna el último asiento libre ahí). */
+export async function movePlayerToTable(
+  tournamentId: string,
+  tables: PokerTable[],
+  playerUid: string,
+  targetTableId: string
+): Promise<void> {
+  const currentTable = tables.find((t) => t.playerIds.includes(playerUid));
+  const targetTable = tables.find((t) => t.id === targetTableId);
+  if (!targetTable || currentTable?.id === targetTableId) return;
+
+  if (currentTable) {
+    await updateDoc(
+      doc(db, "tournaments", tournamentId, "tables", currentTable.id),
+      { playerIds: currentTable.playerIds.filter((uid) => uid !== playerUid) }
+    );
+  }
+
+  const newPlayerIds = [...targetTable.playerIds, playerUid];
+  await updateDoc(
+    doc(db, "tournaments", tournamentId, "tables", targetTableId),
+    { playerIds: newPlayerIds }
+  );
+
+  await updateDoc(doc(db, "tournaments", tournamentId, "players", playerUid), {
+    tableId: targetTableId,
+    seat: newPlayerIds.length,
+  });
 }

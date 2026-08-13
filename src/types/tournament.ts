@@ -84,16 +84,12 @@ export interface TournamentSettings {
   joinCode: string;
 }
 
-export interface TableSeatAssignment {
-  seat: number;
-  playerId: string | null;
-}
-
 export interface PokerTable {
   id: string;
   tournamentId: string;
   name: string;
-  seats: TableSeatAssignment[];
+  /** uids en orden de asiento: el índice 0 es el asiento 1, etc. */
+  playerIds: string[];
 }
 
 export type TransactionType = "buyin" | "rebuy" | "addon" | "fine";
@@ -126,6 +122,8 @@ export interface Player {
   status: PlayerStatus;
   /** epoch ms en que el dealer le registró el buy-in inicial; sin esto, todavía no jugó */
   buyInAt?: number;
+  /** cuántas recompras hizo, para poder mostrar el desglose de fichas */
+  rebuyCount?: number;
   /** ya usó su addon (solo se puede una vez) */
   usedAddon?: boolean;
   eliminatedAt?: number;
