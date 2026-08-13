@@ -26,6 +26,7 @@ import {
 import { TimerCard } from "@/components/timer";
 import { RegistrationCard } from "@/components/roster";
 import { TablesCard } from "@/components/tables";
+import { StandingsCard } from "@/components/standings";
 import { formatChips } from "@/lib/format";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -213,9 +214,12 @@ export default function TorneoDetallePage({
           <RegistrationCard
             tournament={tournament}
             players={players}
+            tables={tables}
             actingUid={profile.uid}
           />
         )}
+
+        <StandingsCard players={players} currentUid={profile.uid} />
 
         <TablesCard
           tournament={tournament}
@@ -273,7 +277,7 @@ export default function TorneoDetallePage({
         )}
 
         <Card className="border-dashed text-center text-pp-brown/70 text-sm">
-          Las eliminaciones, el bounty y el bote se construyen en la próxima
+          El bote total y el reparto de premios se construyen en la próxima
           fase.
         </Card>
       </div>

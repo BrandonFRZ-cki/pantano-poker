@@ -3,6 +3,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -68,6 +69,7 @@ export async function createTournament(
     currentLevel: 1,
     levelEndsAt: null,
     pausedRemainingMs: null,
+    eliminationsCount: 0,
     createdAt: Date.now(),
     ownerUid: owner.uid,
     dealerUids: [owner.uid],
@@ -540,4 +542,81 @@ export async function movePlayerToTable(
     tableId: targetTableId,
     seat: newPlayerIds.length,
   });
+}
+
+/**
+ * Elimina a un jugador. Si se indica quién lo eliminó, le suma el bounty.
+ * Lo saca de su mesa (queda fuera del juego).
+ */
+export async function eliminatePlayer(
+  tournament: TournamentSettings,
+  tables: PokerTable[],
+  eliminatedUid: string,
+  eliminatedByUid: string | null
+): Promise<void> {
+  const order = tournament.eliminationsCount + 1;
+
+  await updateDoc(doc(db, "tournaments", tournament.id), {
+    eliminationsCount: increment(1),
+  });
+
+  await updateDoc(
+    doc(db, "tournaments", tournament.id, "players", eliminatedUid),
+    {
+      status: "eliminated",
+      eliminatedAt: Date.now(),
+      eliminatedBy: eliminatedByUid ?? deleteField(),
+      eliminationOrder: order,
+      tableId: null,
+      seat: null,
+    }
+  );
+
+  const table = tables.find((t) => t.playerIds.includes(eliminatedUid));
+  if (table) {
+    await updateDoc(
+      doc(db, "tournaments", tournament.id, "tables", table.id),
+      { playerIds: table.playerIds.filter((uid) => uid !== eliminatedUid) }
+    );
+  }
+
+  if (eliminatedByUid) {
+    await updateDoc(
+      doc(db, "tournaments", tournament.id, "players", eliminatedByUid),
+      { bountiesWon: arrayUnion(eliminatedUid) }
+    );
+  }
+}
+
+/**
+ * Deshace la última eliminación registrada (por si el dealer se equivocó).
+ * Solo funciona sobre la eliminación más reciente, para no desordenar el
+ * conteo de puestos.
+ */
+export async function undoLastElimination(
+  tournament: TournamentSettings,
+  eliminatedPlayer: Player
+): Promise<void> {
+  if (eliminatedPlayer.eliminationOrder !== tournament.eliminationsCount) return;
+
+  await updateDoc(doc(db, "tournaments", tournament.id), {
+    eliminationsCount: increment(-1),
+  });
+
+  await updateDoc(
+    doc(db, "tournaments", tournament.id, "players", eliminatedPlayer.uid),
+    {
+      status: "active",
+      eliminatedAt: deleteField(),
+      eliminatedBy: deleteField(),
+      eliminationOrder: deleteField(),
+    }
+  );
+
+  if (eliminatedPlayer.eliminatedBy) {
+    await updateDoc(
+      doc(db, "tournaments", tournament.id, "players", eliminatedPlayer.eliminatedBy),
+      { bountiesWon: arrayRemove(eliminatedPlayer.uid) }
+    );
+  }
 }

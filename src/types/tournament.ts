@@ -74,6 +74,8 @@ export interface TournamentSettings {
   levelEndsAt: number | null;
   /** epoch ms restante congelado cuando el dealer pausa el timer */
   pausedRemainingMs: number | null;
+  /** cuántos jugadores fueron eliminados hasta ahora (define el orden de salida) */
+  eliminationsCount: number;
 
   createdAt: number;
   /** uid de quien creó el torneo */

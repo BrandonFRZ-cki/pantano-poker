@@ -3,26 +3,32 @@
 import { useState } from "react";
 import {
   chipsValue,
+  eliminatePlayer,
   registerAddon,
   registerBuyIn,
   registerFine,
   registerRebuy,
+  undoLastElimination,
 } from "@/lib/tournaments";
-import type { Player, TournamentSettings } from "@/types/tournament";
+import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { formatChips } from "@/lib/format";
 import { Avatar, Button, Card } from "@/components/ui";
 
-/** Tarjeta del dealer: registrar buy-in, recompra, addon y multas por jugador. */
+/** Tarjeta del dealer: registrar buy-in, recompra, addon, multas y eliminaciones. */
 export function RegistrationCard({
   tournament,
   players,
+  tables,
   actingUid,
 }: {
   tournament: TournamentSettings;
   players: Player[];
+  tables: PokerTable[];
   actingUid: string;
 }) {
   const [busyUid, setBusyUid] = useState<string | null>(null);
+  const [eliminatingUid, setEliminatingUid] = useState<string | null>(null);
+  const [eliminatorChoice, setEliminatorChoice] = useState("");
   const chipsPerRebuy = chipsValue(tournament.chipValues, tournament.startingStack);
 
   const run = async (uid: string, action: () => Promise<void>) => {
@@ -31,6 +37,22 @@ export function RegistrationCard({
       await action();
     } finally {
       setBusyUid(null);
+    }
+  };
+
+  const confirmElimination = async (targetUid: string) => {
+    setBusyUid(targetUid);
+    try {
+      await eliminatePlayer(
+        tournament,
+        tables,
+        targetUid,
+        eliminatorChoice || null
+      );
+    } finally {
+      setBusyUid(null);
+      setEliminatingUid(null);
+      setEliminatorChoice("");
     }
   };
 
@@ -47,90 +69,167 @@ export function RegistrationCard({
       <div className="flex flex-col divide-y divide-pp-green-mid/10">
         {players.map((p) => {
           const busy = busyUid === p.uid;
+          const isLastElimination =
+            p.status === "eliminated" &&
+            p.eliminationOrder === tournament.eliminationsCount;
+
           return (
             <div
               key={p.uid}
-              className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+              className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0"
             >
-              <div className="flex items-center gap-3">
-                <Avatar name={p.displayName} />
-                <div>
-                  <p className="text-sm text-pp-brown">{p.displayName}</p>
-                  <p className="text-xs text-pp-brown/50">
-                    {p.buyInAt
-                      ? [
-                          `${formatChips(p.chips)} fichas`,
-                          p.rebuyCount
-                            ? `${p.rebuyCount} recompra${p.rebuyCount > 1 ? "s" : ""} (${formatChips(p.rebuyCount * chipsPerRebuy)})`
-                            : null,
-                          p.usedAddon ? "addon" : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")
-                      : "Sin registrar"}
-                  </p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Avatar name={p.displayName} />
+                  <div>
+                    <p className="text-sm text-pp-brown">
+                      {p.displayName}
+                      {p.status === "eliminated" && (
+                        <span className="text-pp-brown/50">
+                          {" "}
+                          · eliminado #{p.eliminationOrder}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-pp-brown/50">
+                      {p.buyInAt
+                        ? [
+                            `${formatChips(p.chips)} fichas`,
+                            p.rebuyCount
+                              ? `${p.rebuyCount} recompra${p.rebuyCount > 1 ? "s" : ""} (${formatChips(p.rebuyCount * chipsPerRebuy)})`
+                              : null,
+                            p.usedAddon ? "addon" : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        : "Sin registrar"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap justify-end gap-1.5">
-                {!p.buyInAt ? (
-                  <Button
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      run(p.uid, () =>
-                        registerBuyIn(tournament, p.uid, actingUid)
-                      )
-                    }
-                  >
-                    Buy-in
-                  </Button>
-                ) : (
-                  <>
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  {!p.buyInAt ? (
                     <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={busy || p.status === "eliminated"}
-                      onClick={() =>
-                        run(p.uid, () =>
-                          registerRebuy(tournament, p.uid, actingUid)
-                        )
-                      }
-                    >
-                      Recompra
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={busy || p.usedAddon}
-                      onClick={() =>
-                        run(p.uid, () =>
-                          registerAddon(tournament, p.uid, actingUid)
-                        )
-                      }
-                    >
-                      {p.usedAddon ? "Addon ✓" : "Addon"}
-                    </Button>
-                    <Button
-                      variant="ghost"
                       size="sm"
                       disabled={busy}
                       onClick={() =>
                         run(p.uid, () =>
-                          registerFine(
-                            tournament,
-                            p.uid,
-                            actingUid,
-                            window.prompt("Motivo de la multa (opcional)") ??
-                              undefined
-                          )
+                          registerBuyIn(tournament, p.uid, actingUid)
                         )
                       }
                     >
-                      Multa
+                      Buy-in
                     </Button>
-                  </>
-                )}
+                  ) : p.status === "eliminated" ? (
+                    isLastElimination && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() =>
+                          run(p.uid, () => undoLastElimination(tournament, p))
+                        }
+                      >
+                        Deshacer eliminación
+                      </Button>
+                    )
+                  ) : (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() =>
+                          run(p.uid, () =>
+                            registerRebuy(tournament, p.uid, actingUid)
+                          )
+                        }
+                      >
+                        Recompra
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={busy || p.usedAddon}
+                        onClick={() =>
+                          run(p.uid, () =>
+                            registerAddon(tournament, p.uid, actingUid)
+                          )
+                        }
+                      >
+                        {p.usedAddon ? "Addon ✓" : "Addon"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() =>
+                          run(p.uid, () =>
+                            registerFine(
+                              tournament,
+                              p.uid,
+                              actingUid,
+                              window.prompt("Motivo de la multa (opcional)") ??
+                                undefined
+                            )
+                          )
+                        }
+                      >
+                        Multa
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => setEliminatingUid(p.uid)}
+                      >
+                        Eliminar
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
+
+              {eliminatingUid === p.uid && (
+                <div className="flex items-center gap-2 bg-pp-brown/5 rounded-xl px-3 py-2">
+                  <span className="text-xs text-pp-brown/70">
+                    ¿Quién lo eliminó?
+                  </span>
+                  <select
+                    className="flex-1 text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown"
+                    value={eliminatorChoice}
+                    onChange={(e) => setEliminatorChoice(e.target.value)}
+                  >
+                    <option value="">Sin bounty / no se sabe</option>
+                    {players
+                      .filter(
+                        (other) =>
+                          other.uid !== p.uid && other.status === "active"
+                      )
+                      .map((other) => (
+                        <option key={other.uid} value={other.uid}>
+                          {other.displayName}
+                        </option>
+                      ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => confirmElimination(p.uid)}
+                  >
+                    Confirmar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEliminatingUid(null);
+                      setEliminatorChoice("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}
