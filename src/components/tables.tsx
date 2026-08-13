@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { assignTables, movePlayerToTable } from "@/lib/tournaments";
+import { assignTables, balanceTables, movePlayerToTable } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { Avatar, Button, Card } from "@/components/ui";
 
@@ -23,6 +23,7 @@ export function TablesCard({
   currentUid: string;
 }) {
   const [assigning, setAssigning] = useState(false);
+  const [balancing, setBalancing] = useState(false);
   const [movingUid, setMovingUid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +45,21 @@ export function TablesCard({
       );
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const handleBalance = async () => {
+    setBalancing(true);
+    setError(null);
+    try {
+      await balanceTables(tournament.id, tables);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err instanceof Error ? err.message : "No se pudieron balancear las mesas."
+      );
+    } finally {
+      setBalancing(false);
     }
   };
 
@@ -87,16 +103,34 @@ export function TablesCard({
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-pp-brown/70">Mesas</p>
         {isDealer && (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={assigning}
-            onClick={handleAssign}
-          >
-            {assigning ? "Rehaciendo…" : "Rehacer mesas"}
-          </Button>
+          <div className="flex items-center gap-3">
+            {tables.length > 1 && (
+              <button
+                type="button"
+                disabled={balancing}
+                onClick={handleBalance}
+                className="text-sm text-pp-green-dark underline disabled:opacity-50"
+              >
+                {balancing ? "Balanceando…" : "Balancear mesas"}
+              </button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={assigning}
+              onClick={handleAssign}
+            >
+              {assigning ? "Rehaciendo…" : "Rehacer mesas"}
+            </Button>
+          </div>
         )}
       </div>
+      {isDealer && tables.length > 1 && (
+        <p className="text-xs text-pp-brown/40 -mt-2">
+          &quot;Balancear&quot; mueve solo a los jugadores necesarios;
+          &quot;Rehacer&quot; vuelve a repartir a todos desde cero.
+        </p>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {tables.map((table) => (

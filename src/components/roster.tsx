@@ -135,22 +135,32 @@ export function RegistrationCard({
           const isLastElimination =
             p.status === "eliminated" &&
             p.eliminationOrder === tournament.eliminationsCount;
+          const eliminator = p.eliminatedBy
+            ? players.find((other) => other.uid === p.eliminatedBy)
+            : null;
 
           return (
             <div
               key={p.uid}
-              className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0"
+              className={`flex flex-col gap-2 py-3 px-2 first:pt-0 last:pb-0 rounded-lg ${
+                p.status === "eliminated"
+                  ? "bg-red-50 border border-red-200/60"
+                  : ""
+              }`}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Avatar name={p.displayName} />
                   <div>
-                    <p className="text-sm text-pp-brown">
+                    <p
+                      className={`text-sm ${p.status === "eliminated" ? "text-red-800" : "text-pp-brown"}`}
+                    >
                       {p.displayName}
                       {p.status === "eliminated" && (
-                        <span className="text-pp-brown/50">
+                        <span className="text-red-700/70">
                           {" "}
                           · eliminado #{p.eliminationOrder}
+                          {eliminator && ` por ${eliminator.displayName}`}
                         </span>
                       )}
                     </p>

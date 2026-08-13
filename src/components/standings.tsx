@@ -9,22 +9,30 @@ function Row({
   player,
   currentUid,
   extra,
-  muted,
+  eliminated,
 }: {
   rank: string;
   player: Player;
   currentUid: string;
   extra?: string;
-  muted?: boolean;
+  eliminated?: boolean;
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-2 ${muted ? "opacity-60" : ""}`}
+      className={`flex items-center justify-between gap-2 rounded-lg ${
+        eliminated ? "bg-red-50 border border-red-200/60 px-2 py-1" : ""
+      }`}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-xs text-pp-brown/50 w-7 shrink-0">{rank}</span>
+        <span
+          className={`text-xs w-7 shrink-0 ${eliminated ? "text-red-700/60" : "text-pp-brown/50"}`}
+        >
+          {rank}
+        </span>
         <Avatar name={player.displayName} size={28} />
-        <span className="text-sm text-pp-brown truncate">
+        <span
+          className={`text-sm truncate ${eliminated ? "text-red-800" : "text-pp-brown"}`}
+        >
           {player.displayName}
           {player.uid === currentUid && (
             <span className="text-pp-brown/50"> (tú)</span>
@@ -32,7 +40,9 @@ function Row({
         </span>
       </div>
       {extra && (
-        <span className="text-xs text-pp-brown/60 shrink-0 text-right">
+        <span
+          className={`text-xs shrink-0 text-right ${eliminated ? "text-red-700/70" : "text-pp-brown/60"}`}
+        >
           {extra}
         </span>
       )}
@@ -99,7 +109,7 @@ export function StandingsCard({
                 rank={`${totalRegistered - (p.eliminationOrder ?? 0) + 1}º`}
                 player={p}
                 currentUid={currentUid}
-                muted
+                eliminated
                 extra={[
                   eliminator ? `eliminado por ${eliminator.displayName}` : null,
                   bountyText(p),

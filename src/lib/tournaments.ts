@@ -582,6 +582,68 @@ export async function assignTables(
   );
 }
 
+/**
+ * Balancea las mesas moviendo el mínimo de jugadores posible (en vez de
+ * rehacer todo desde cero): pasa jugadores de la mesa más llena a la más
+ * vacía hasta que la diferencia entre mesas sea de a lo sumo 1, y borra las
+ * mesas que hayan quedado en 0 jugadores (por eliminaciones).
+ */
+export async function balanceTables(
+  tournamentId: string,
+  tables: PokerTable[]
+): Promise<void> {
+  const working = tables.map((t) => ({ ...t, playerIds: [...t.playerIds] }));
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const sorted = [...working].sort(
+      (a, b) => b.playerIds.length - a.playerIds.length
+    );
+    const largest = sorted[0];
+    const smallest = sorted[sorted.length - 1];
+    if (
+      largest &&
+      smallest &&
+      largest.id !== smallest.id &&
+      largest.playerIds.length - smallest.playerIds.length > 1
+    ) {
+      const movedUid = largest.playerIds.pop();
+      if (movedUid) {
+        smallest.playerIds.push(movedUid);
+        changed = true;
+      }
+    }
+  }
+
+  const nonEmpty = working.filter((t) => t.playerIds.length > 0);
+  const emptyIds = working
+    .filter((t) => t.playerIds.length === 0)
+    .map((t) => t.id);
+
+  await Promise.all([
+    ...nonEmpty.map((t) =>
+      updateDoc(doc(db, "tournaments", tournamentId, "tables", t.id), {
+        playerIds: t.playerIds,
+      })
+    ),
+    ...emptyIds.map((id) =>
+      deleteDoc(doc(db, "tournaments", tournamentId, "tables", id))
+    ),
+  ]);
+
+  await Promise.all(
+    nonEmpty.flatMap((table) =>
+      table.playerIds.map((uid, seatIndex) =>
+        updateDoc(doc(db, "tournaments", tournamentId, "players", uid), {
+          tableId: table.id,
+          seat: seatIndex + 1,
+        })
+      )
+    )
+  );
+}
+
 /** Mueve manualmente a un jugador a otra mesa (se le asigna el último asiento libre ahí). */
 export async function movePlayerToTable(
   tournamentId: string,
