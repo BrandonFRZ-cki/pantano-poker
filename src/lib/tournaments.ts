@@ -46,6 +46,8 @@ export interface CreateTournamentInput {
   rebuyAmount: number;
   addonAmount: number;
   bountyPerElimination: number;
+  bountyMode: "fixed" | "mystery";
+  chipLeaderBonus: number;
   prizeSplit: number[];
   guaranteedFirstPlace: number;
   houseRuleFine: number;
@@ -439,12 +441,16 @@ export async function registerBuyIn(
 /**
  * Registra una recompra: mismas fichas que el buy-in inicial. Solo tiene
  * sentido para un jugador ya eliminado (reingresa a la mesa); por eso
- * también lo vuelve a marcar como "active".
+ * también lo vuelve a marcar como "active". Si se le pasan las mesas
+ * actuales, lo asienta directo en la que tenga menos jugadores (así no
+ * queda "fantasma" sin mesa hasta que el dealer lo mueva a mano) y limpia
+ * cualquier solicitud de recompra pendiente.
  */
 export async function registerRebuy(
   tournament: TournamentSettings,
   targetUid: string,
-  actingUid: string
+  actingUid: string,
+  tables?: PokerTable[]
 ): Promise<void> {
   const chipsAwarded =
     chipsValue(tournament.chipValues, tournament.startingStack) +
@@ -462,14 +468,59 @@ export async function registerRebuy(
   // Se resetea el stack (no se suma al que tenía): un jugador eliminado se
   // queda en 0 fichas, así que la recompra le entrega un stack nuevo, igual
   // que el buy-in inicial.
+  const updates: Record<string, unknown> = {
+    chips: chipsAwarded,
+    rebuyCount: increment(1),
+    status: "active",
+    rebuyRequestedAt: deleteField(),
+  };
+
+  const smallestTable =
+    tables && tables.length > 0
+      ? [...tables].sort((a, b) => a.playerIds.length - b.playerIds.length)[0]
+      : null;
+
+  if (smallestTable) {
+    updates.tableId = smallestTable.id;
+    updates.seat = smallestTable.playerIds.length + 1;
+  }
+
   await updateDoc(
     doc(db, "tournaments", tournament.id, "players", targetUid),
-    {
-      chips: chipsAwarded,
-      rebuyCount: increment(1),
-      status: "active",
-    }
+    updates
   );
+
+  if (smallestTable) {
+    await updateDoc(
+      doc(db, "tournaments", tournament.id, "tables", smallestTable.id),
+      { playerIds: arrayUnion(targetUid) }
+    );
+  }
+}
+
+/**
+ * El propio jugador eliminado pide recompra (por ejemplo desde la pantalla
+ * de "fuiste eliminado"); solo marca la solicitud, el dealer la aprueba
+ * después con el botón normal de "Recompra".
+ */
+export async function requestRebuy(
+  tournamentId: string,
+  uid: string
+): Promise<void> {
+  await updateDoc(doc(db, "tournaments", tournamentId, "players", uid), {
+    rebuyRequestedAt: Date.now(),
+  });
+}
+
+/** Actualiza el nombre del jugador en este torneo (por si cambió el nombre de su perfil). */
+export async function updatePlayerDisplayName(
+  tournamentId: string,
+  uid: string,
+  displayName: string
+): Promise<void> {
+  await updateDoc(doc(db, "tournaments", tournamentId, "players", uid), {
+    displayName,
+  });
 }
 
 /** Registra el addon (una sola vez por jugador). */

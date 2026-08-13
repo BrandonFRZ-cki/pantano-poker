@@ -16,7 +16,10 @@ export interface TournamentFormState {
   rebuyAmount: number;
   addonAmount: number;
   bountyPerElimination: number;
-  /** % del bote por puesto pagado; el largo del array = cuántos puestos pagan */
+  bountyMode: "fixed" | "mystery";
+  /** 0 = desactivado; bono para quien tenga más fichas al cerrar reinscripciones */
+  chipLeaderBonus: number;
+  /** % del bote por puesto pagado; ya no se edita (se calcula automático), queda por compatibilidad */
   prizeSplit: number[];
   guaranteedFirstPlace: number;
   houseRuleFine: number;
@@ -38,6 +41,8 @@ export const BLANK_TOURNAMENT_STATE: TournamentFormState = {
   rebuyAmount: 0,
   addonAmount: 0,
   bountyPerElimination: 0,
+  bountyMode: "fixed",
+  chipLeaderBonus: 0,
   prizeSplit: [70, 30],
   guaranteedFirstPlace: 0,
   houseRuleFine: 0,
@@ -61,6 +66,8 @@ export const PANTANO_TOURNAMENT_STATE: TournamentFormState = {
   rebuyAmount: PANTANO_DEFAULTS.rebuyAmount,
   addonAmount: PANTANO_DEFAULTS.addonAmount,
   bountyPerElimination: PANTANO_DEFAULTS.bountyPerElimination,
+  bountyMode: PANTANO_DEFAULTS.bountyMode,
+  chipLeaderBonus: PANTANO_DEFAULTS.chipLeaderBonus,
   prizeSplit: [...PANTANO_DEFAULTS.prizeSplit],
   guaranteedFirstPlace: PANTANO_DEFAULTS.guaranteedFirstPlace,
   houseRuleFine: PANTANO_DEFAULTS.houseRuleFine,
@@ -82,6 +89,8 @@ export const BALA_TOURNAMENT_STATE: TournamentFormState = {
   rebuyAmount: BALA_DEFAULTS.rebuyAmount,
   addonAmount: BALA_DEFAULTS.addonAmount,
   bountyPerElimination: BALA_DEFAULTS.bountyPerElimination,
+  bountyMode: BALA_DEFAULTS.bountyMode,
+  chipLeaderBonus: BALA_DEFAULTS.chipLeaderBonus,
   prizeSplit: [...BALA_DEFAULTS.prizeSplit],
   guaranteedFirstPlace: BALA_DEFAULTS.guaranteedFirstPlace,
   houseRuleFine: BALA_DEFAULTS.houseRuleFine,
@@ -106,6 +115,8 @@ export function formStateToInput(
     rebuyAmount: form.rebuyAmount,
     addonAmount: form.addonAmount,
     bountyPerElimination: form.bountyPerElimination,
+    bountyMode: form.bountyMode,
+    chipLeaderBonus: form.chipLeaderBonus,
     prizeSplit: form.prizeSplit.map((p) => p / 100),
     guaranteedFirstPlace: form.guaranteedFirstPlace,
     houseRuleFine: form.houseRuleFine,
@@ -131,6 +142,8 @@ export function tournamentToFormState(
     rebuyAmount: t.rebuyAmount,
     addonAmount: t.addonAmount,
     bountyPerElimination: t.bountyPerElimination,
+    bountyMode: t.bountyMode ?? "fixed",
+    chipLeaderBonus: t.chipLeaderBonus ?? 0,
     // Torneos viejos todavía tienen prizeSplit como fracción (0.7/0.3); acá
     // se muestra siempre como % entero para el formulario.
     prizeSplit: t.prizeSplit.map((p) => Math.round(p * 100)),

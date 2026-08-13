@@ -89,7 +89,12 @@ export const PANTANO_DEFAULTS = {
   rebuyAmount: 5,
   addonAmount: 5,
   bountyPerElimination: 1,
-  // % del bote para cada puesto pagado (el largo del array = cuántos puestos pagan).
+  bountyMode: "fixed" as const,
+  // 0 = desactivado; si se pone algo, el líder de fichas al cerrarse las
+  // reinscripciones/addon se lo lleva (empate = nadie).
+  chipLeaderBonus: 0,
+  // Ya no se usa para calcular el reparto (ver lib/payout-table.ts), queda
+  // solo por compatibilidad con el tipo/torneos viejos.
   prizeSplit: [70, 30],
   // 0 = sin garantía fija; si se pone algo, el 1er puesto se asegura ese
   // monto y el resto se calcula con lo que sobra (o cae a % si no alcanza).
@@ -163,6 +168,8 @@ export const BALA_DEFAULTS = {
   rebuyAmount: 2,
   addonAmount: 2,
   bountyPerElimination: 0.5,
+  bountyMode: "fixed" as const,
+  chipLeaderBonus: 0,
   prizeSplit: [70, 30],
   guaranteedFirstPlace: 0,
   houseRuleFine: 0.25,

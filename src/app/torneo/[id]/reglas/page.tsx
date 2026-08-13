@@ -6,10 +6,26 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { subscribeToTournament } from "@/lib/tournaments";
 import type { TournamentSettings } from "@/types/tournament";
-import { CHIP_COLOR_LABEL } from "@/lib/tournament-defaults";
+import { CHIP_COLOR_HEX, CHIP_COLOR_LABEL } from "@/lib/tournament-defaults";
 import { formatMoney } from "@/lib/format";
-import { Card, IconArrowLeft } from "@/components/ui";
+import {
+  Card,
+  IconArrowLeft,
+  IconChip,
+  IconClock,
+  IconGavel,
+  IconInfo,
+} from "@/components/ui";
 import { LoadingScreen } from "@/components/loading";
+
+function ChipDot({ hex }: { hex: string }) {
+  return (
+    <span
+      className="inline-block w-4 h-4 rounded-full border border-black/10 shrink-0"
+      style={{ backgroundColor: hex }}
+    />
+  );
+}
 
 export default function ReglasPage({
   params,
@@ -54,6 +70,13 @@ export default function ReglasPage({
   }
 
   const houseRules = tournament.houseRules ?? [];
+  const rebuyUntilLevel =
+    tournament.rebuyUntilLevel ?? tournament.blindStructure.length;
+  const addonLevel = tournament.addonLevel ?? 1;
+  const entriesClosed =
+    tournament.status === "finished" ||
+    tournament.currentLevel > Math.max(rebuyUntilLevel, addonLevel);
+  const bountyMode = tournament.bountyMode ?? "fixed";
 
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
@@ -73,7 +96,10 @@ export default function ReglasPage({
         </h1>
 
         <Card className="flex flex-col gap-3">
-          <p className="text-sm font-medium text-pp-brown/70">Dinero</p>
+          <div className="flex items-center gap-2 text-pp-green-dark">
+            <IconInfo />
+            <p className="text-sm font-medium">Dinero</p>
+          </div>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
               <p className="text-xs text-pp-brown/50">Buy-in</p>
@@ -96,17 +122,37 @@ export default function ReglasPage({
           </div>
           <p className="text-xs text-pp-brown/50">
             Recompras hasta el nivel {tournament.rebuyUntilLevel} · addon
-            disponible desde el nivel {tournament.addonLevel}. Bounty por
-            eliminación: {formatMoney(tournament.bountyPerElimination)}{" "}
-            (incluido en cada pago, no es extra). Reparto:{" "}
-            {tournament.prizeSplit.map((p) => `${Math.round(p * 100)}%`).join(" / ")}
-            .
+            disponible desde el nivel {tournament.addonLevel}.
+          </p>
+          <p className="text-xs text-pp-brown/50">
+            Bounty por eliminación:{" "}
+            {entriesClosed
+              ? bountyMode === "mystery"
+                ? "misterioso (se revela al final)"
+                : formatMoney(tournament.bountyPerElimination)
+              : "se revela al cerrarse las recompras/addon"}{" "}
+            (incluido en cada pago, no es extra).
+          </p>
+          {tournament.chipLeaderBonus > 0 && (
+            <p className="text-xs text-pp-brown/50">
+              👑 Bono de {formatMoney(tournament.chipLeaderBonus)} para quien
+              tenga más fichas al cerrar recompras/addon (nadie si hay
+              empate).
+            </p>
+          )}
+          <p className="text-xs text-pp-brown/50">
+            Cuántos puestos pagan y cuánto le toca a cada uno se calcula
+            automático según cuántos jugadores entren.
           </p>
         </Card>
 
         <Card className="flex flex-col gap-3">
-          <p className="text-sm font-medium text-pp-brown/70">Fichas</p>
-          <div className="grid grid-cols-4 gap-2 text-xs text-pp-brown/50 px-1">
+          <div className="flex items-center gap-2 text-pp-green-dark">
+            <IconChip />
+            <p className="text-sm font-medium">Fichas</p>
+          </div>
+          <div className="grid grid-cols-[1.25rem_1fr_1fr_1fr_1fr] gap-2 text-xs text-pp-brown/50 px-1">
+            <span></span>
             <span>Color</span>
             <span>Valor</span>
             <span>Stack</span>
@@ -114,7 +160,11 @@ export default function ReglasPage({
           </div>
           {(Object.keys(CHIP_COLOR_LABEL) as (keyof typeof CHIP_COLOR_LABEL)[]).map(
             (color) => (
-              <div key={color} className="grid grid-cols-4 gap-2 items-center">
+              <div
+                key={color}
+                className="grid grid-cols-[1.25rem_1fr_1fr_1fr_1fr] gap-2 items-center"
+              >
+                <ChipDot hex={CHIP_COLOR_HEX[color]} />
                 <span className="text-sm text-pp-brown">
                   {CHIP_COLOR_LABEL[color]}
                 </span>
@@ -130,12 +180,29 @@ export default function ReglasPage({
               </div>
             )
           )}
+          {(tournament.extraChips ?? []).map((chip) => (
+            <div
+              key={chip.id}
+              className="grid grid-cols-[1.25rem_1fr_1fr_1fr_1fr] gap-2 items-center"
+            >
+              <ChipDot hex={chip.hex} />
+              <span className="text-sm text-pp-brown">{chip.label}</span>
+              <span className="text-sm text-pp-brown/70">{chip.value}</span>
+              <span className="text-sm text-pp-brown/70">
+                {chip.startingStack}
+              </span>
+              <span className="text-sm text-pp-brown/70">
+                {chip.addonStack}
+              </span>
+            </div>
+          ))}
         </Card>
 
         <Card className="flex flex-col gap-3">
-          <p className="text-sm font-medium text-pp-brown/70">
-            Estructura de ciegas
-          </p>
+          <div className="flex items-center gap-2 text-pp-green-dark">
+            <IconClock />
+            <p className="text-sm font-medium">Estructura de ciegas</p>
+          </div>
           <div className="grid grid-cols-4 gap-2 text-xs text-pp-brown/50 px-1">
             <span>Nivel</span>
             <span>Ciegas</span>
@@ -167,9 +234,12 @@ export default function ReglasPage({
         </Card>
 
         <Card className="flex flex-col gap-3">
-          <p className="text-sm font-medium text-pp-brown/70">
-            Reglas de la casa (multas de {formatMoney(tournament.houseRuleFine)})
-          </p>
+          <div className="flex items-center gap-2 text-pp-green-dark">
+            <IconGavel />
+            <p className="text-sm font-medium">
+              Reglas de la casa (multas de {formatMoney(tournament.houseRuleFine)})
+            </p>
+          </div>
           {houseRules.length === 0 ? (
             <p className="text-sm text-pp-brown/60">
               Todavía no hay reglas configuradas.

@@ -4,7 +4,12 @@
 // bounty (ver pantano-poker-resumen.md), así que se resta del total
 // recaudado el bounty efectivamente pagado (bountyPerElimination × cantidad
 // de bounties cobrados). Lo que queda es lo que se reparte entre los
-// puestos, según los porcentajes de prizeSplit (ej. 70/30).
+// puestos.
+//
+// Cuántos puestos pagan y qué % le toca a cada uno ya NO se configura a
+// mano: se calcula automático según cuántos jugadores entraron en total,
+// con la tabla estándar de lib/payout-table.ts (la misma que usan la
+// mayoría de los torneos garantizados).
 //
 // El "puesto" de cada jugador sigue el mismo criterio que el tablero de
 // posiciones: los activos ordenados por fichas, seguidos de los eliminados
@@ -12,6 +17,7 @@
 // los activos).
 
 import type { Player, TournamentSettings, Transaction } from "@/types/tournament";
+import { standardPayoutSplit } from "@/lib/payout-table";
 
 export interface RankedPlayer {
   player: Player;
@@ -50,11 +56,14 @@ export interface PotSummary {
   prizes: PrizeAmount[];
   /** true si hay un monto garantizado para el 1er puesto y el bote ya lo cubre */
   guaranteedMet: boolean;
+  /** cuántos jugadores entraron en total (headcount), base del reparto automático */
+  entries: number;
 }
 
 /**
- * Reparte el bote entre los puestos pagados (tournament.prizeSplit, uno por
- * puesto). Si hay un monto garantizado para el 1er puesto:
+ * Reparte el bote entre los puestos pagados. Los % de cada puesto salen de
+ * la tabla estándar (según cuántos jugadores entraron). Si hay un monto
+ * garantizado para el 1er puesto:
  * - si el bote lo alcanza a cubrir, el 1er puesto se lleva ese monto fijo y
  *   el resto de puestos se reparten lo que sobra, en la misma proporción
  *   relativa que tenían entre ellos.
@@ -110,10 +119,13 @@ export function computePot(
   const netPool = Math.max(totalCollected - totalBounty, 0);
 
   const ranked = rankPlayers(players);
+  const entries = ranked.length;
+
+  const prizeSplit = standardPayoutSplit(entries);
 
   const { amounts, guaranteedMet } = splitPrizes(
     netPool,
-    tournament.prizeSplit,
+    prizeSplit,
     tournament.guaranteedFirstPlace ?? 0
   );
 
@@ -123,5 +135,41 @@ export function computePot(
     player: ranked.find((r) => r.rank === i + 1)?.player ?? null,
   }));
 
-  return { totalCollected, totalBounty, netPool, totalFines, prizes, guaranteedMet };
+  return {
+    totalCollected,
+    totalBounty,
+    netPool,
+    totalFines,
+    prizes,
+    guaranteedMet,
+    entries,
+  };
+}
+
+export interface ChipLeaderResult {
+  player: Player;
+  amount: number;
+}
+
+/**
+ * Calcula quién se lleva el bono de líder de fichas: se congela justo
+ * cuando cierran las reinscripciones/addon (el receso), comparando los
+ * stacks de los jugadores todavía activos en ese momento. Si hay empate en
+ * la cima, no se lo lleva nadie.
+ */
+export function computeChipLeaderBonus(
+  tournament: TournamentSettings,
+  players: Player[]
+): ChipLeaderResult | null {
+  const bonus = tournament.chipLeaderBonus ?? 0;
+  if (bonus <= 0) return null;
+
+  const active = players.filter((p) => p.buyInAt && p.status === "active");
+  if (active.length === 0) return null;
+
+  const maxChips = Math.max(...active.map((p) => p.chips));
+  const leaders = active.filter((p) => p.chips === maxChips);
+
+  if (leaders.length !== 1) return null;
+  return { player: leaders[0], amount: bonus };
 }

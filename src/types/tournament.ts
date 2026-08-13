@@ -64,7 +64,24 @@ export interface TournamentSettings {
   addonAmount: number;
   /** Parte de cada buy-in/recompra/addon que se destina al bounty del jugador */
   bountyPerElimination: number;
-  /** Porcentaje del bote por puesto (cuántos puestos pagan = el largo de este array) */
+  /**
+   * "fixed": se ve el monto de cada bounty apenas se cierra la etapa de
+   * reinscripciones. "mystery": el monto total se sabe, pero no se revela
+   * quién ganó cuánto hasta el resumen final (más suspenso).
+   */
+  bountyMode: "fixed" | "mystery";
+  /**
+   * Premio extra ($ , 0 = desactivado) para quien tenga más fichas justo al
+   * cerrarse las reinscripciones/addon (el receso). Si hay empate en la
+   * cima, no se lo lleva nadie.
+   */
+  chipLeaderBonus: number;
+  /**
+   * Porcentaje del bote por puesto (cuántos puestos pagan = el largo de
+   * este array). Ya NO se usa para calcular el reparto (ver
+   * lib/payout-table.ts, que lo calcula automático según la cantidad de
+   * jugadores) — queda solo por compatibilidad con torneos viejos.
+   */
   prizeSplit: number[];
   /**
    * Monto fijo garantizado para el 1er puesto, sin importar el %. Si el
@@ -174,6 +191,8 @@ export interface Player {
   /** ids de jugadores por los que cobró bounty */
   bountiesWon: string[];
   registeredAt: number;
+  /** epoch ms en que pidió recompra (a la espera de que el dealer la apruebe) */
+  rebuyRequestedAt?: number | null;
   /**
    * true si es un jugador temporal creado por el dueño (sin cuenta ni
    * celular propio): vive solo dentro de este torneo y se borra junto con

@@ -1,16 +1,13 @@
 "use client";
 
 import type { Player, TournamentSettings, Transaction } from "@/types/tournament";
-import { computePot } from "@/lib/prizes";
+import { computeChipLeaderBonus, computePot } from "@/lib/prizes";
 import { formatMoney } from "@/lib/format";
 import { Avatar, Card } from "@/components/ui";
 
-const PLACE_LABEL: Record<number, string> = {
-  1: "1º puesto",
-  2: "2º puesto",
-  3: "3º puesto",
-  4: "4º puesto",
-};
+function placeLabel(rank: number): string {
+  return `${rank}º puesto`;
+}
 
 /**
  * Tarjeta pública: bote total y cuánto le toca a cada puesto. Se muestra
@@ -51,6 +48,10 @@ export function PrizesCard({
   }
 
   const pot = computePot(tournament, players, transactions);
+  const chipLeader = entriesClosed
+    ? computeChipLeaderBonus(tournament, players)
+    : null;
+  const bountyMode = tournament.bountyMode ?? "fixed";
 
   return (
     <Card className="flex flex-col gap-4">
@@ -64,8 +65,24 @@ export function PrizesCard({
       <p className="text-xs text-pp-brown/50">
         Recaudado {formatMoney(pot.totalCollected)}
         {pot.totalBounty > 0 &&
-          ` · bounty pagado ${formatMoney(pot.totalBounty)}`}
+          (bountyMode === "mystery"
+            ? " · bounty misterioso (se revela al final)"
+            : ` · bounty pagado ${formatMoney(pot.totalBounty)}`)}
       </p>
+
+      {chipLeader && (
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-pp-green-light/20 px-3 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar name={chipLeader.player.displayName} size={28} />
+            <span className="text-sm text-pp-brown truncate">
+              👑 Líder de fichas: {chipLeader.player.displayName}
+            </span>
+          </div>
+          <span className="text-sm font-medium text-pp-green-dark shrink-0">
+            {formatMoney(chipLeader.amount)}
+          </span>
+        </div>
+      )}
 
       {tournament.guaranteedFirstPlace > 0 && (
         <p className="text-xs text-pp-brown/50">
@@ -83,7 +100,7 @@ export function PrizesCard({
           >
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-xs text-pp-brown/50 w-16 shrink-0">
-                {PLACE_LABEL[prize.rank] ?? `${prize.rank}º puesto`}
+                {placeLabel(prize.rank)}
               </span>
               {prize.player && <Avatar name={prize.player.displayName} size={28} />}
               <span className="text-sm text-pp-brown truncate">

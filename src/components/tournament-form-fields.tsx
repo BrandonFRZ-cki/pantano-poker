@@ -195,24 +195,6 @@ export function TournamentFormFields({
     }));
   };
 
-  const updatePrizeSplit = (index: number, value: number) => {
-    setForm((prev) => ({
-      ...prev,
-      prizeSplit: prev.prizeSplit.map((p, i) => (i === index ? value : p)),
-    }));
-  };
-
-  const addPrizePlace = () => {
-    setForm((prev) => ({ ...prev, prizeSplit: [...prev.prizeSplit, 0] }));
-  };
-
-  const removePrizePlace = (index: number) => {
-    setForm((prev) => ({
-      ...prev,
-      prizeSplit: prev.prizeSplit.filter((_, i) => i !== index),
-    }));
-  };
-
   const updateExtraChip = (
     index: number,
     field: keyof ExtraChip,
@@ -252,8 +234,6 @@ export function TournamentFormFields({
 
   const levelLabel = (lvl: BlindLevel) =>
     `Nivel ${lvl.level} — ${lvl.smallBlind}/${lvl.bigBlind}${lvl.isBreak ? " (receso)" : ""}`;
-
-  const prizeTotal = form.prizeSplit.reduce((sum, p) => sum + p, 0);
 
   return (
     <>
@@ -336,7 +316,7 @@ export function TournamentFormFields({
             <input
               type="number"
               min={0}
-              step="0.5"
+              step="0.05"
               className={inputClass}
               {...numberInputProps(form.houseRuleFine)}
               onChange={(e) =>
@@ -349,49 +329,53 @@ export function TournamentFormFields({
           </label>
         </div>
 
-        <div className="flex flex-col gap-2 pt-2 border-t border-pp-green-mid/10">
-          <div className="flex items-center justify-between">
-            <p className={labelClass}>Reparto de premios</p>
-            <button
-              type="button"
-              onClick={addPrizePlace}
-              className="text-sm text-pp-green-dark underline"
+        <div className="grid grid-cols-2 gap-3">
+          <label className={labelClass}>
+            Tipo de bounty
+            <select
+              className={inputClass}
+              value={form.bountyMode}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  bountyMode: e.target.value as "fixed" | "mystery",
+                }))
+              }
             >
-              + Agregar puesto
-            </button>
-          </div>
-          {form.prizeSplit.map((pct, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="text-xs text-pp-brown/50 w-16 shrink-0">
-                {index + 1}º puesto
-              </span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                className={inputClass}
-                {...numberInputProps(pct)}
-                onChange={(e) =>
-                  updatePrizeSplit(index, e.target.valueAsNumber || 0)
-                }
-              />
-              <span className="text-xs text-pp-brown/50">%</span>
-              {form.prizeSplit.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removePrizePlace(index)}
-                  className="text-pp-brown/40 hover:text-red-700"
-                  aria-label={`Sacar puesto ${index + 1}`}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-          <p
-            className={`text-xs ${prizeTotal === 100 ? "text-pp-brown/40" : "text-red-700"}`}
-          >
-            Suma: {prizeTotal}% {prizeTotal !== 100 && "(debería dar 100%)"}
+              <option value="fixed">Normal (se ve el monto)</option>
+              <option value="mystery">Misterioso (se revela al final)</option>
+            </select>
+          </label>
+          <label className={labelClass}>
+            Bono líder de fichas en el receso ($, opcional)
+            <input
+              type="number"
+              min={0}
+              step="0.5"
+              className={inputClass}
+              {...numberInputProps(form.chipLeaderBonus)}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  chipLeaderBonus: e.target.valueAsNumber || 0,
+                }))
+              }
+            />
+          </label>
+        </div>
+        <p className="text-xs text-pp-brown/50 -mt-2">
+          El bounty se paga siempre; con &quot;misterioso&quot; los jugadores
+          no ven cuánto ganó cada quien hasta el resumen final. El bono de
+          líder de fichas se lo lleva quien tenga más fichas justo al cerrar
+          recompras/addon (nadie si hay empate).
+        </p>
+
+        <div className="flex flex-col gap-2 pt-2 border-t border-pp-green-mid/10">
+          <p className={labelClass}>Reparto de premios</p>
+          <p className="text-xs text-pp-brown/50">
+            Cuántos puestos pagan y qué % le toca a cada uno se calculan
+            solos según cuántos jugadores entren (tabla estándar de torneos
+            garantizados) — no hace falta configurarlo a mano.
           </p>
           <label className={labelClass}>
             Monto garantizado para el 1er puesto ($, opcional)
