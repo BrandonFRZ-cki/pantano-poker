@@ -14,17 +14,27 @@ export function SeatDiagram({
   table,
   players,
   currentUid,
+  dealerName,
 }: {
   table: PokerTable;
   players: Player[];
   currentUid: string;
+  /** Nombre a mostrar en la banca del dealer, arriba de la mesa (null = genérico). */
+  dealerName?: string | null;
 }) {
   const blinds = computeBlindSeats(table);
   const positions = seatPositions(table.playerIds.length);
 
   return (
-    <div className="relative w-full aspect-[5/3] max-w-xl mx-auto">
+    <div className="relative w-full aspect-[5/3] max-w-xl mx-auto mt-4">
       <div className="absolute inset-[8%] rounded-[999px] bg-pp-green-dark/90 border-4 border-pp-brown/20 shadow-inner" />
+
+      {/* Banca del dealer: parte de la mesa, no un asiento más. */}
+      <div className="absolute left-1/2 -top-4 -translate-x-1/2 flex flex-col items-center z-10">
+        <span className="rounded-full bg-pp-brown text-pp-cream text-[10px] font-medium px-3 py-1 shadow whitespace-nowrap">
+          🂠 Dealer{dealerName ? ` · ${dealerName}` : ""}
+        </span>
+      </div>
 
       {table.playerIds.map((uid, i) => {
         const player = nameFor(players, uid);

@@ -211,6 +211,13 @@ function MesaContent({
                 table={table}
                 players={players}
                 currentUid={viewedUid ?? profile.uid}
+                dealerName={
+                  tournament.dealerMode === "fixed"
+                    ? (players.find((p) =>
+                        tournament.dealerUids.includes(p.uid)
+                      )?.displayName ?? null)
+                    : null
+                }
               />
             </Card>
 
