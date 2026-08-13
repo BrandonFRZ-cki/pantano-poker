@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { assignTables, balanceTables, movePlayerToTable } from "@/lib/tournaments";
+import {
+  assignTables,
+  balanceTables,
+  movePlayerToTable,
+  setTableDealer,
+} from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { Avatar, Button, Card } from "@/components/ui";
 import { SeatDiagram } from "@/components/table-seats";
@@ -10,20 +15,9 @@ function nameFor(players: Player[], uid: string): string {
   return players.find((p) => p.uid === uid)?.displayName ?? "…";
 }
 
-/**
- * Quién está a cargo de repartir: con dealer fijo, es la misma persona en
- * todas las mesas (la primera de dealerUids con cuenta). Con dealer
- * rotativo no hay uno solo asignado, así que se avisa que va rotando.
- */
-function dealerInChargeLabel(
-  tournament: TournamentSettings,
-  players: Player[]
-): string | null {
-  if (tournament.dealerMode !== "fixed") return null;
-  return (
-    players.find((p) => tournament.dealerUids.includes(p.uid))?.displayName ??
-    null
-  );
+function dealerNameFor(table: PokerTable, players: Player[]): string | null {
+  if (!table.dealerUid) return null;
+  return nameFor(players, table.dealerUid);
 }
 
 export function TablesCard({
@@ -31,28 +25,42 @@ export function TablesCard({
   players,
   tables,
   isDealer,
+  isOwner,
   currentUid,
 }: {
   tournament: TournamentSettings;
   players: Player[];
   tables: PokerTable[];
   isDealer: boolean;
+  isOwner: boolean;
   currentUid: string;
 }) {
   const [assigning, setAssigning] = useState(false);
   const [balancing, setBalancing] = useState(false);
   const [movingUid, setMovingUid] = useState<string | null>(null);
+  const [savingDealerTableId, setSavingDealerTableId] = useState<string | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
 
   const eligibleCount = players.filter(
     (p) => p.buyInAt && p.status === "active"
   ).length;
+  const estimatedTables = Math.max(
+    Math.ceil(eligibleCount / Math.max(tournament.seatsPerTable, 1)),
+    eligibleCount > 0 ? 1 : 0
+  );
+  const fixedDealerMode = tournament.dealerMode === "fixed";
+  const notEnoughDealersToStart =
+    fixedDealerMode && estimatedTables > tournament.dealerUids.length;
 
   const counts = tables.map((t) => t.playerIds.length);
   const imbalance =
     counts.length > 1 ? Math.max(...counts) - Math.min(...counts) : 0;
   const shortTable = tables.find((t) => t.playerIds.length === Math.min(...counts));
-  const dealerInCharge = dealerInChargeLabel(tournament, players);
+  const tablesMissingDealer = fixedDealerMode
+    ? tables.filter((t) => !t.dealerUid)
+    : [];
 
   const handleAssign = async () => {
     setAssigning(true);
@@ -101,6 +109,21 @@ export function TablesCard({
     }
   };
 
+  const handleSetDealer = async (tableId: string, dealerUid: string) => {
+    setSavingDealerTableId(tableId);
+    setError(null);
+    try {
+      await setTableDealer(tournament.id, tableId, dealerUid || null);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err instanceof Error ? err.message : "No se pudo asignar el dealer."
+      );
+    } finally {
+      setSavingDealerTableId(null);
+    }
+  };
+
   if (tables.length === 0) {
     if (!isDealer) return null;
     return (
@@ -109,6 +132,16 @@ export function TablesCard({
           Todavía no armaste las mesas ({eligibleCount} jugador
           {eligibleCount === 1 ? "" : "es"} con buy-in registrado)
         </p>
+        {notEnoughDealersToStart && (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-300/60 rounded-lg px-3 py-2">
+            Con {tournament.seatsPerTable} jugadores por mesa te van a salir
+            ~{estimatedTables} mesas, pero solo tienes{" "}
+            {tournament.dealerUids.length} dealer
+            {tournament.dealerUids.length === 1 ? "" : "es"} asignados. Cada
+            mesa necesita el suyo — agrega más dealers en Roles antes de
+            armarlas, o arma igual y asígnalos después.
+          </p>
+        )}
         <Button
           size="sm"
           disabled={assigning || eligibleCount === 0}
@@ -172,67 +205,96 @@ export function TablesCard({
         </div>
       )}
 
+      {isDealer && tablesMissingDealer.length > 0 && (
+        <div className="rounded-xl bg-amber-50 border border-amber-300/60 px-4 py-2.5">
+          <p className="text-sm text-amber-900">
+            Le falta dealer a {tablesMissingDealer.map((t) => t.name).join(", ")}
+            . Cada mesa necesita el suyo — {isOwner ? "asígnalo abajo" : "pídele al dueño que lo asigne"}.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {tables.map((table) => (
-          <div key={table.id}>
-            <p className="text-xs font-medium text-pp-brown/50 mb-2">
-              {table.name}
-              {tournament.dealerMode === "fixed" && (
-                <span className="text-pp-brown/40">
-                  {" "}
-                  · dealer: {dealerInCharge ?? "sin asignar"}
-                </span>
-              )}
-              {tournament.dealerMode === "rotating" && (
-                <span className="text-pp-brown/40"> · dealer rotativo</span>
-              )}
-            </p>
-            {table.playerIds.length > 0 && (
-              <SeatDiagram
-                table={table}
-                players={players}
-                currentUid={currentUid}
-                dealerName={dealerInCharge}
-                compact
-              />
-            )}
-            <div className="flex flex-col gap-2 mt-3">
-              {table.playerIds.map((uid, index) => (
-                <div
-                  key={uid}
-                  className="flex items-center justify-between gap-2"
+        {tables.map((table) => {
+          const tableDealerName = dealerNameFor(table, players);
+          return (
+            <div key={table.id}>
+              <p className="text-xs font-medium text-pp-brown/50 mb-2">
+                {table.name}
+                {fixedDealerMode && (
+                  <span className={tableDealerName ? "text-pp-brown/40" : "text-amber-700"}>
+                    {" "}
+                    · dealer: {tableDealerName ?? "sin asignar"}
+                  </span>
+                )}
+                {tournament.dealerMode === "rotating" && (
+                  <span className="text-pp-brown/40"> · dealer rotativo</span>
+                )}
+              </p>
+
+              {fixedDealerMode && isOwner && (
+                <select
+                  className="mb-2 text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown/70"
+                  value={table.dealerUid ?? ""}
+                  disabled={savingDealerTableId === table.id}
+                  onChange={(e) => handleSetDealer(table.id, e.target.value)}
                 >
-                  <div className="flex items-center gap-2">
-                    <Avatar name={nameFor(players, uid)} size={28} />
-                    <span className="text-sm text-pp-brown">
-                      Asiento {index + 1} · {nameFor(players, uid)}
-                      {uid === currentUid && (
-                        <span className="text-pp-brown/50"> (tú)</span>
-                      )}
-                    </span>
-                  </div>
-                  {isDealer && tables.length > 1 && (
-                    <select
-                      className="text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown/70"
-                      value={table.id}
-                      disabled={movingUid === uid}
-                      onChange={(e) => handleMove(uid, e.target.value)}
-                    >
-                      {tables.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              ))}
-              {table.playerIds.length === 0 && (
-                <p className="text-xs text-pp-brown/40">Sin jugadores</p>
+                  <option value="">Sin asignar</option>
+                  {tournament.dealerUids.map((uid) => (
+                    <option key={uid} value={uid}>
+                      {nameFor(players, uid)}
+                    </option>
+                  ))}
+                </select>
               )}
+
+              {table.playerIds.length > 0 && (
+                <SeatDiagram
+                  table={table}
+                  players={players}
+                  currentUid={currentUid}
+                  dealerName={tableDealerName}
+                  compact
+                />
+              )}
+              <div className="flex flex-col gap-2 mt-3">
+                {table.playerIds.map((uid, index) => (
+                  <div
+                    key={uid}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Avatar name={nameFor(players, uid)} size={28} />
+                      <span className="text-sm text-pp-brown">
+                        Asiento {index + 1} · {nameFor(players, uid)}
+                        {uid === currentUid && (
+                          <span className="text-pp-brown/50"> (tú)</span>
+                        )}
+                      </span>
+                    </div>
+                    {isDealer && tables.length > 1 && (
+                      <select
+                        className="text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown/70"
+                        value={table.id}
+                        disabled={movingUid === uid}
+                        onChange={(e) => handleMove(uid, e.target.value)}
+                      >
+                        {tables.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                ))}
+                {table.playerIds.length === 0 && (
+                  <p className="text-xs text-pp-brown/40">Sin jugadores</p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
     </Card>

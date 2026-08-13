@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
+  removePlayerFromTournament,
   setPlayerRole,
   subscribeToPlayer,
   subscribeToPlayers,
@@ -71,6 +72,7 @@ export default function TorneoDetallePage({
   const [fetching, setFetching] = useState(true);
   const [copied, setCopied] = useState(false);
   const [savingUid, setSavingUid] = useState<string | null>(null);
+  const [confirmRemoveUid, setConfirmRemoveUid] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !firebaseUser) {
@@ -211,6 +213,16 @@ export default function TorneoDetallePage({
     }
   };
 
+  const handleRemovePlayer = async (targetUid: string) => {
+    setSavingUid(targetUid);
+    try {
+      await removePlayerFromTournament(id, targetUid, tables);
+    } finally {
+      setSavingUid(null);
+      setConfirmRemoveUid(null);
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
       {showEliminatedOverlay && (
@@ -335,6 +347,7 @@ export default function TorneoDetallePage({
           players={players}
           tables={tables}
           isDealer={isDealer}
+          isOwner={isOwner}
           currentUid={profile.uid}
         />
 
@@ -356,28 +369,63 @@ export default function TorneoDetallePage({
               {players.map((p) => (
                 <div
                   key={p.uid}
-                  className="flex items-center justify-between gap-3 py-2.5 border-b border-pp-green-mid/10 sm:border-b-0 sm:py-2 last:border-b-0"
+                  className="flex flex-col gap-2 py-2.5 border-b border-pp-green-mid/10 sm:border-b-0 sm:py-2 last:border-b-0"
                 >
-                  <div className="flex items-center gap-3">
-                    <Avatar name={p.displayName} />
-                    <span className="text-sm text-pp-brown">
-                      {p.displayName}
-                      {p.uid === tournament.ownerUid && (
-                        <span className="text-pp-brown/50"> (tú)</span>
-                      )}
-                    </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={p.displayName} />
+                      <span className="text-sm text-pp-brown">
+                        {p.displayName}
+                        {p.uid === tournament.ownerUid && (
+                          <span className="text-pp-brown/50"> (tú)</span>
+                        )}
+                      </span>
+                    </div>
+                    {p.uid !== tournament.ownerUid && (
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            handleToggleDealer(p.uid, p.role !== "dealer")
+                          }
+                          disabled={savingUid === p.uid}
+                        >
+                          {p.role === "dealer" ? "Sacar dealer" : "Hacer dealer"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setConfirmRemoveUid(p.uid)}
+                          disabled={savingUid === p.uid}
+                        >
+                          Sacar jugador
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {p.uid !== tournament.ownerUid && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() =>
-                        handleToggleDealer(p.uid, p.role !== "dealer")
-                      }
-                      disabled={savingUid === p.uid}
-                    >
-                      {p.role === "dealer" ? "Sacar dealer" : "Hacer dealer"}
-                    </Button>
+                  {confirmRemoveUid === p.uid && (
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200/60 rounded-xl px-3 py-2">
+                      <span className="text-xs text-red-800 flex-1">
+                        ¿Sacar a {p.displayName} del torneo por completo? No
+                        se puede deshacer.
+                      </span>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        disabled={savingUid === p.uid}
+                        onClick={() => handleRemovePlayer(p.uid)}
+                      >
+                        Sacar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmRemoveUid(null)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}

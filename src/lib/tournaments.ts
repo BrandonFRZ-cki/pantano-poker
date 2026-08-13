@@ -622,11 +622,19 @@ export async function assignTables(
     1
   );
 
+  // Con dealer fijo, cada mesa necesita su propio dealer (uno no puede
+  // repartir en dos mesas a la vez): se reparten los dealerUids disponibles
+  // uno por mesa; si faltan, esas mesas quedan sin asignar y el dueño las
+  // completa a mano (la UI avisa cuando falten).
+  const availableDealers =
+    tournament.dealerMode === "fixed" ? tournament.dealerUids : [];
+
   const tables: PokerTable[] = Array.from({ length: tableCount }, (_, i) => ({
     id: `mesa-${i + 1}`,
     tournamentId: tournament.id,
     name: `Mesa ${i + 1}`,
     playerIds: [],
+    dealerUid: availableDealers[i] ?? null,
     buttonUid: null,
     currentActorUid: null,
     speakClockEndsAt: null,
@@ -722,6 +730,36 @@ export async function balanceTables(
       )
     )
   );
+}
+
+/** El dueño asigna (o cambia) quién es el dealer a cargo de una mesa. */
+export async function setTableDealer(
+  tournamentId: string,
+  tableId: string,
+  dealerUid: string | null
+): Promise<void> {
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", tableId), {
+    dealerUid,
+  });
+}
+
+/**
+ * Saca por completo a alguien del torneo (no solo le cambia el rol): borra
+ * su registro y lo saca de la mesa si estaba sentado. Pensado para corregir
+ * errores, ej. haber marcado sin querer a un dealer como jugador.
+ */
+export async function removePlayerFromTournament(
+  tournamentId: string,
+  uid: string,
+  tables: PokerTable[]
+): Promise<void> {
+  const table = tables.find((t) => t.playerIds.includes(uid));
+  if (table) {
+    await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+      playerIds: arrayRemove(uid),
+    });
+  }
+  await deleteDoc(doc(db, "tournaments", tournamentId, "players", uid));
 }
 
 /** Mueve manualmente a un jugador a otra mesa (se le asigna el último asiento libre ahí). */

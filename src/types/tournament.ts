@@ -135,6 +135,8 @@ export interface PokerTable {
   name: string;
   /** uids en orden de asiento: el índice 0 es el asiento 1, etc. */
   playerIds: string[];
+  /** uid del dealer a cargo de esta mesa (solo con dealerMode "fixed"); null = sin asignar */
+  dealerUid?: string | null;
 
   /** uid de quien tiene el botón de dealer en la mano actual de esta mesa */
   buttonUid?: string | null;
