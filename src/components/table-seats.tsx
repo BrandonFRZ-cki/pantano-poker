@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { computeBlindSeats } from "@/lib/table-order";
+import { computeBlindSeats, computePositionLabels } from "@/lib/table-order";
 import type { Player, PokerTable } from "@/types/tournament";
 import { formatChips } from "@/lib/format";
 import { Avatar } from "@/components/ui";
@@ -33,23 +33,27 @@ function seatPositionsWithDealerGap(
   return positions;
 }
 
-/** Dibuja la mesa en óvalo con cada jugador en su asiento, botón/SB/BB y turno actual. */
+/** Dibuja la mesa en óvalo con cada jugador en su asiento, botón/posición y turno actual. */
 export function SeatDiagram({
   table,
   players,
   currentUid,
   dealerName,
   compact = false,
+  onSeatTap,
 }: {
   table: PokerTable;
   players: Player[];
   currentUid: string;
   /** Nombre a mostrar en la banca del dealer, arriba de la mesa (null = genérico). */
   dealerName?: string | null;
-  /** Versión chica (sin fichas/SB-BB/mano), para mostrar un modelo por mesa en una lista. */
+  /** Versión chica (sin fichas/posición/mano), para mostrar un modelo por mesa en una lista. */
   compact?: boolean;
+  /** Si se pasa, cada asiento se puede tocar (ej. el dealer, para editar/eliminar/recomprar). */
+  onSeatTap?: (player: Player) => void;
 }) {
   const blinds = computeBlindSeats(table);
+  const positionLabels = computePositionLabels(table);
   const positions = seatPositionsWithDealerGap(table.playerIds.length);
   const avatarSize = compact ? 22 : 32;
 
@@ -87,25 +91,28 @@ export function SeatDiagram({
         if (!player) return null;
         const pos = positions[i];
         const isButton = blinds?.buttonUid === uid;
-        const isSb = blinds?.sbUid === uid && !isButton;
-        const isBb = blinds?.bbUid === uid;
         const isTurn = table.currentActorUid === uid;
         const isMe = uid === currentUid;
+        const posLabel = positionLabels?.[uid];
+        const tappable = !compact && !!onSeatTap;
 
         return (
           <div
             key={uid}
-            className="absolute flex flex-col items-center gap-0.5 -translate-x-1/2 -translate-y-1/2 z-10"
+            className="absolute flex flex-col items-center -translate-x-1/2 -translate-y-1/2 z-10"
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
           >
-            <div
+            <button
+              type="button"
+              disabled={!tappable}
+              onClick={() => tappable && onSeatTap?.(player)}
               className={`flex flex-col items-center rounded-xl ${
-                compact ? "gap-0 px-1 py-1" : "gap-1 px-2 py-1.5"
+                compact ? "gap-0 px-1 py-1 w-14 min-h-[44px]" : "gap-1 px-2 py-1.5 w-20 min-h-[92px]"
               } ${
                 isTurn
                   ? "bg-pp-green-light/40 ring-2 ring-pp-green-dark"
                   : "bg-white/90"
-              }`}
+              } ${tappable ? "cursor-pointer hover:ring-2 hover:ring-pp-green-mid" : "cursor-default"}`}
             >
               <div className="relative">
                 <Avatar name={player.displayName} size={avatarSize} />
@@ -121,18 +128,24 @@ export function SeatDiagram({
                   </span>
                 )}
               </div>
+              <span
+                className={`text-pp-brown text-center leading-tight truncate ${
+                  compact ? "text-[9px] max-w-[3.5rem]" : "text-[11px] max-w-[5rem]"
+                }`}
+              >
+                {player.displayName}
+                {!compact && isMe && (
+                  <span className="text-pp-brown/50"> (tú)</span>
+                )}
+              </span>
               {!compact && (
                 <>
-                  <span className="text-[11px] text-pp-brown text-center leading-tight max-w-[5rem] truncate">
-                    {player.displayName}
-                    {isMe && <span className="text-pp-brown/50"> (tú)</span>}
-                  </span>
                   <span className="text-[10px] text-pp-brown/60">
                     {formatChips(player.chips)}
                   </span>
-                  {(isSb || isBb) && (
+                  {posLabel && (
                     <span className="text-[9px] font-medium text-pp-green-dark">
-                      {isSb ? "SB" : "BB"}
+                      {posLabel}
                     </span>
                   )}
                   {player.revealedHand && player.revealedHand.length > 0 && (
@@ -142,12 +155,7 @@ export function SeatDiagram({
                   )}
                 </>
               )}
-              {compact && (
-                <span className="text-[9px] text-pp-brown text-center leading-tight max-w-[3.5rem] truncate">
-                  {player.displayName}
-                </span>
-              )}
-            </div>
+            </button>
           </div>
         );
       })}

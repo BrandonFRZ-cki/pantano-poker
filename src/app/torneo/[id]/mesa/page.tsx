@@ -6,9 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   advanceButton,
+  eliminatePlayer,
   nextSpeaker,
   pauseSpeakClock,
+  registerRebuy,
   resumeSpeakClock,
+  seatPlayerAtTable,
   setRevealedHand,
   setSpeakClockSeconds,
   startSpeakClock,
@@ -16,6 +19,7 @@ import {
   subscribeToPlayers,
   subscribeToTables,
   subscribeToTournament,
+  updatePlayerChips,
 } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { SeatDiagram } from "@/components/table-seats";
@@ -52,6 +56,9 @@ function MesaContent({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [actionPlayer, setActionPlayer] = useState<Player | null>(null);
+  const [stackValue, setStackValue] = useState("");
+  const [eliminatorChoice, setEliminatorChoice] = useState("");
 
   useEffect(() => {
     if (!loading && !firebaseUser) {
@@ -147,6 +154,70 @@ function MesaContent({
     ? players.find((p) => p.uid === table.currentActorUid)
     : null;
 
+  const rebuyUntilLevel =
+    tournament.rebuyUntilLevel ?? tournament.blindStructure.length;
+  const rebuysOpen = tournament.currentLevel <= rebuyUntilLevel;
+
+  // Candidatos a "quién lo eliminó": jugadores activos de esta misma mesa,
+  // sin contar al dealer fijo (no juega).
+  const eliminatorCandidates = table
+    ? players.filter(
+        (p) =>
+          p.status === "active" &&
+          p.uid !== actionPlayer?.uid &&
+          table.playerIds.includes(p.uid) &&
+          !(tournament.dealerMode === "fixed" && tournament.dealerUids.includes(p.uid))
+      )
+    : [];
+
+  const openActionPanel = (p: Player) => {
+    setActionPlayer(p);
+    setStackValue(String(p.chips));
+    setEliminatorChoice("");
+    setError(null);
+  };
+
+  const closeActionPanel = () => {
+    setActionPlayer(null);
+    setStackValue("");
+    setEliminatorChoice("");
+  };
+
+  const handleSaveStack = async () => {
+    if (!actionPlayer) return;
+    const chips = Number(stackValue);
+    if (Number.isNaN(chips)) {
+      setError("Ingresa un número válido de fichas.");
+      return;
+    }
+    await run(async () => {
+      await updatePlayerChips(id, actionPlayer.uid, chips);
+      closeActionPanel();
+    });
+  };
+
+  const handleEliminate = async () => {
+    if (!actionPlayer) return;
+    await run(async () => {
+      await eliminatePlayer(tournament, tables, actionPlayer, eliminatorChoice || null);
+      closeActionPanel();
+    });
+  };
+
+  // Bust-and-rebuy en un solo toque: lo elimina, le da un stack nuevo y lo
+  // sienta en una mesa cualquiera (puede ser la misma), útil cuando quedó en
+  // 0 fichas y quiere seguir jugando de una.
+  const handleQuickRebuy = async () => {
+    if (!actionPlayer || tables.length === 0) return;
+    await run(async () => {
+      await eliminatePlayer(tournament, tables, actionPlayer, null);
+      await registerRebuy(tournament, actionPlayer.uid, profile.uid);
+      const randomTable = tables[Math.floor(Math.random() * tables.length)];
+      await seatPlayerAtTable(id, randomTable, actionPlayer.uid);
+      closeActionPanel();
+    });
+  };
+
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
       <div className="w-full max-w-2xl mx-auto flex flex-col gap-6">
@@ -217,8 +288,91 @@ function MesaContent({
                         ?.displayName ?? null)
                     : null
                 }
+                onSeatTap={isDealer ? openActionPanel : undefined}
               />
+              {isDealer && (
+                <p className="text-xs text-pp-brown/40 text-center -mt-2">
+                  Toca a un jugador para editar su stack, eliminarlo o
+                  recomprarlo en una mesa al azar.
+                </p>
+              )}
             </Card>
+
+            {actionPlayer && (
+              <Card className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-pp-brown/70">
+                    {actionPlayer.displayName}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={closeActionPanel}
+                    className="text-xs text-pp-brown/50 hover:text-pp-brown underline"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-pp-brown/70 shrink-0">
+                    Stack
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="flex-1 text-sm border border-pp-green-mid/30 rounded-full px-3 py-1.5 bg-white text-pp-brown"
+                    value={stackValue}
+                    onChange={(e) => setStackValue(e.target.value)}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={busy}
+                    onClick={handleSaveStack}
+                  >
+                    Guardar
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-pp-brown/70 shrink-0">
+                    ¿Quién lo eliminó?
+                  </span>
+                  <select
+                    className="flex-1 text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown min-w-[8rem]"
+                    value={eliminatorChoice}
+                    onChange={(e) => setEliminatorChoice(e.target.value)}
+                  >
+                    <option value="">Sin bounty / no se sabe</option>
+                    {eliminatorCandidates.map((other) => (
+                      <option key={other.uid} value={other.uid}>
+                        {other.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={busy}
+                    onClick={handleEliminate}
+                  >
+                    Eliminar
+                  </Button>
+                </div>
+
+                {rebuysOpen && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy || tables.length === 0}
+                    onClick={handleQuickRebuy}
+                  >
+                    Recomprar ya en mesa al azar (elimina + reingresa de una)
+                  </Button>
+                )}
+                {error && <p className="text-sm text-red-700">{error}</p>}
+              </Card>
+            )}
 
             <Card className="flex flex-col items-center gap-3 text-center">
               <p className="text-sm text-pp-brown/70">

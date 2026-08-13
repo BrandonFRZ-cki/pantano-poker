@@ -762,6 +762,30 @@ export async function removePlayerFromTournament(
   await deleteDoc(doc(db, "tournaments", tournamentId, "players", uid));
 }
 
+/**
+ * Sienta a un jugador en una mesa dada, sin asumir que ya estaba en otra
+ * (a diferencia de movePlayerToTable). Pensado para después de una
+ * eliminación/recompra rápida, donde el jugador ya quedó sin mesa.
+ */
+export async function seatPlayerAtTable(
+  tournamentId: string,
+  table: PokerTable,
+  playerUid: string
+): Promise<void> {
+  const newPlayerIds = table.playerIds.includes(playerUid)
+    ? table.playerIds
+    : [...table.playerIds, playerUid];
+
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+    playerIds: newPlayerIds,
+  });
+
+  await updateDoc(doc(db, "tournaments", tournamentId, "players", playerUid), {
+    tableId: table.id,
+    seat: newPlayerIds.length,
+  });
+}
+
 /** Mueve manualmente a un jugador a otra mesa (se le asigna el último asiento libre ahí). */
 export async function movePlayerToTable(
   tournamentId: string,
