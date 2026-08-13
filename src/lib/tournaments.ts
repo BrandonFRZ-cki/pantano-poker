@@ -759,6 +759,21 @@ export async function removePlayerFromTournament(
       playerIds: arrayRemove(uid),
     });
   }
+
+  // Si era dealer de alguna mesa o del torneo, se lo saca de esas listas
+  // también, para no dejar referencias colgando a un jugador que ya no existe.
+  const tablesWithHimAsDealer = tables.filter((t) => t.dealerUid === uid);
+  await Promise.all(
+    tablesWithHimAsDealer.map((t) =>
+      updateDoc(doc(db, "tournaments", tournamentId, "tables", t.id), {
+        dealerUid: null,
+      })
+    )
+  );
+  await updateDoc(doc(db, "tournaments", tournamentId), {
+    dealerUids: arrayRemove(uid),
+  });
+
   await deleteDoc(doc(db, "tournaments", tournamentId, "players", uid));
 }
 
