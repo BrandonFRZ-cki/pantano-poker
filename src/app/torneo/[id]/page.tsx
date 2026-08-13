@@ -10,8 +10,14 @@ import {
   subscribeToPlayers,
   subscribeToTables,
   subscribeToTournament,
+  subscribeToTransactions,
 } from "@/lib/tournaments";
-import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
+import type {
+  Player,
+  PokerTable,
+  TournamentSettings,
+  Transaction,
+} from "@/types/tournament";
 import {
   Avatar,
   Badge,
@@ -27,6 +33,8 @@ import { TimerCard } from "@/components/timer";
 import { RegistrationCard } from "@/components/roster";
 import { TablesCard } from "@/components/tables";
 import { StandingsCard } from "@/components/standings";
+import { PrizesCard } from "@/components/prizes";
+import { FinesCard } from "@/components/fines";
 import { LoadingScreen } from "@/components/loading";
 import { formatChips } from "@/lib/format";
 
@@ -57,6 +65,7 @@ export default function TorneoDetallePage({
   const [player, setPlayer] = useState<Player | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [tables, setTables] = useState<PokerTable[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [fetching, setFetching] = useState(true);
   const [copied, setCopied] = useState(false);
   const [savingUid, setSavingUid] = useState<string | null>(null);
@@ -101,6 +110,7 @@ export default function TorneoDetallePage({
   // está en su mesa, no solo el dealer.
   useEffect(() => subscribeToPlayers(id, setPlayers), [id]);
   useEffect(() => subscribeToTables(id, setTables), [id]);
+  useEffect(() => subscribeToTransactions(id, setTransactions), [id]);
 
   if (loading || !firebaseUser || !profile || fetching) {
     return (
@@ -151,7 +161,7 @@ export default function TorneoDetallePage({
 
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
-      <div className="w-full max-w-md mx-auto flex flex-col items-center gap-6">
+      <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
         <div className="flex items-center justify-between w-full">
           <Link
             href="/panel"
@@ -181,44 +191,62 @@ export default function TorneoDetallePage({
           </p>
         </div>
 
-        <TimerCard tournament={tournament} isDealer={isDealer} />
+        {/* En celular todo va en una sola columna; en pantallas grandes se
+            aprovecha el ancho con dos columnas lado a lado. */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="flex flex-col gap-6">
+            <TimerCard tournament={tournament} isDealer={isDealer} />
 
-        {isDealer && (
-          <Card className="flex flex-col items-center gap-4 text-center">
-            <p className="text-sm text-pp-brown/70">
-              Código para que se unan los jugadores
-            </p>
-            <p className="font-mono text-3xl tracking-[0.3em] text-pp-green-dark">
-              {tournament.joinCode}
-            </p>
-            <div className="rounded-xl overflow-hidden border border-pp-green-mid/20 p-2 bg-white">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={qrSrc}
-                alt={`Código QR para unirse a ${tournament.name}`}
-                width={180}
-                height={180}
+            {isDealer && (
+              <Card className="flex flex-col items-center gap-4 text-center">
+                <p className="text-sm text-pp-brown/70">
+                  Código para que se unan los jugadores
+                </p>
+                <p className="font-mono text-3xl tracking-[0.3em] text-pp-green-dark">
+                  {tournament.joinCode}
+                </p>
+                <div className="rounded-xl overflow-hidden border border-pp-green-mid/20 p-2 bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qrSrc}
+                    alt={`Código QR para unirse a ${tournament.name}`}
+                    width={180}
+                    height={180}
+                  />
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleCopy}>
+                  <span className="inline-flex items-center gap-1.5">
+                    {copied ? <IconCheck /> : <IconCopy />}
+                    {copied ? "¡Copiado!" : "Copiar link para compartir"}
+                  </span>
+                </Button>
+              </Card>
+            )}
+
+            {isDealer && (
+              <RegistrationCard
+                tournament={tournament}
+                players={players}
+                tables={tables}
+                actingUid={profile.uid}
               />
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleCopy}>
-              <span className="inline-flex items-center gap-1.5">
-                {copied ? <IconCheck /> : <IconCopy />}
-                {copied ? "¡Copiado!" : "Copiar link para compartir"}
-              </span>
-            </Button>
-          </Card>
-        )}
+            )}
 
-        {isDealer && (
-          <RegistrationCard
-            tournament={tournament}
-            players={players}
-            tables={tables}
-            actingUid={profile.uid}
-          />
-        )}
+            {isDealer && (
+              <FinesCard transactions={transactions} players={players} />
+            )}
+          </div>
 
-        <StandingsCard players={players} currentUid={profile.uid} />
+          <div className="flex flex-col gap-6">
+            <PrizesCard
+              tournament={tournament}
+              players={players}
+              transactions={transactions}
+            />
+
+            <StandingsCard players={players} currentUid={profile.uid} />
+          </div>
+        </div>
 
         <TablesCard
           tournament={tournament}
@@ -242,11 +270,11 @@ export default function TorneoDetallePage({
                 )}
               </p>
             </div>
-            <div className="flex flex-col divide-y divide-pp-green-mid/10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
               {players.map((p) => (
                 <div
                   key={p.uid}
-                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                  className="flex items-center justify-between gap-3 py-2.5 border-b border-pp-green-mid/10 sm:border-b-0 sm:py-2 last:border-b-0"
                 >
                   <div className="flex items-center gap-3">
                     <Avatar name={p.displayName} />
@@ -274,11 +302,6 @@ export default function TorneoDetallePage({
             </div>
           </Card>
         )}
-
-        <Card className="border-dashed text-center text-pp-brown/70 text-sm">
-          El bote total y el reparto de premios se construyen en la próxima
-          fase.
-        </Card>
       </div>
     </div>
   );

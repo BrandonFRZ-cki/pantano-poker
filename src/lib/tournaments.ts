@@ -472,6 +472,22 @@ export async function registerFine(
   );
 }
 
+/** Lista de movimientos (buy-in, recompra, addon, multa) en vivo, más reciente primero. */
+export function subscribeToTransactions(
+  tournamentId: string,
+  onChange: (transactions: Transaction[]) => void
+): () => void {
+  return onSnapshot(
+    collection(db, "tournaments", tournamentId, "transactions"),
+    (snap) => {
+      const transactions = snap.docs
+        .map((d) => d.data() as Transaction)
+        .sort((a, b) => b.createdAt - a.createdAt);
+      onChange(transactions);
+    }
+  );
+}
+
 /** Lista de mesas en vivo, ordenadas por nombre. */
 export function subscribeToTables(
   tournamentId: string,

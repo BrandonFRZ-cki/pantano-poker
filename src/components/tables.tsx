@@ -98,7 +98,7 @@ export function TablesCard({
         )}
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {tables.map((table) => (
           <div key={table.id}>
             <p className="text-xs font-medium text-pp-brown/50 mb-2">
