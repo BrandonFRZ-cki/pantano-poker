@@ -27,6 +27,7 @@ export function TimerCard({
 }) {
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const advancingRef = useRef(false);
 
   const isRunning = tournament.status === "in_progress";
@@ -69,8 +70,12 @@ export function TimerCard({
 
   const runAction = async (action: () => Promise<void>) => {
     setBusy(true);
+    setError(null);
     try {
       await action();
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Algo salió mal.");
     } finally {
       setBusy(false);
     }
@@ -98,6 +103,7 @@ export function TimerCard({
             {busy ? "Iniciando…" : "Iniciar torneo"}
           </Button>
         )}
+        {error && <p className="text-sm text-red-700">{error}</p>}
       </Card>
     );
   }
@@ -187,6 +193,7 @@ export function TimerCard({
           </Button>
         </div>
       )}
+      {error && <p className="text-sm text-red-700">{error}</p>}
     </Card>
   );
 }

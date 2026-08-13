@@ -27,6 +27,7 @@ import { TimerCard } from "@/components/timer";
 import { RegistrationCard } from "@/components/roster";
 import { TablesCard } from "@/components/tables";
 import { StandingsCard } from "@/components/standings";
+import { LoadingScreen } from "@/components/loading";
 import { formatChips } from "@/lib/format";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -103,9 +104,7 @@ export default function TorneoDetallePage({
 
   if (loading || !firebaseUser || !profile || fetching) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center bg-pp-cream px-6 py-16">
-        <p className="text-pp-brown/70">Cargando…</p>
-      </div>
+      <LoadingScreen />
     );
   }
 

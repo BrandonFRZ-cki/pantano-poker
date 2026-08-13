@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { LoadingScreen } from "@/components/loading";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -56,9 +57,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center bg-pp-cream px-6 py-16">
-        <p className="text-pp-brown/70">Cargando…</p>
-      </div>
+      <LoadingScreen />
     );
   }
 

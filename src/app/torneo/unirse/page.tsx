@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { joinTournamentByCode } from "@/lib/tournaments";
+import { LoadingScreen } from "@/components/loading";
 
 function UnirseForm() {
   const router = useRouter();
@@ -42,9 +43,7 @@ function UnirseForm() {
 
   if (loading || !firebaseUser || !profile) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center bg-pp-cream px-6 py-16">
-        <p className="text-pp-brown/70">Cargando…</p>
-      </div>
+      <LoadingScreen />
     );
   }
 
@@ -84,9 +83,7 @@ export default function UnirseTorneoPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-col flex-1 items-center justify-center bg-pp-cream px-6 py-16">
-          <p className="text-pp-brown/70">Cargando…</p>
-        </div>
+        <LoadingScreen />
       }
     >
       <UnirseForm />

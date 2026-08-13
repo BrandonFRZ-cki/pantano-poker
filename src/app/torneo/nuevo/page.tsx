@@ -12,6 +12,7 @@ import {
 } from "@/lib/tournament-form-state";
 import { TournamentFormFields } from "@/components/tournament-form-fields";
 import { Button } from "@/components/ui";
+import { LoadingScreen } from "@/components/loading";
 
 export default function NuevoTorneoPage() {
   const router = useRouter();
@@ -46,9 +47,7 @@ export default function NuevoTorneoPage() {
 
   if (loading || !firebaseUser || !profile) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center bg-pp-cream px-6 py-16">
-        <p className="text-pp-brown/70">Cargando…</p>
-      </div>
+      <LoadingScreen />
     );
   }
 

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getUserTournaments } from "@/lib/tournaments";
 import type { TournamentSettings } from "@/types/tournament";
 import { Badge, Card, LinkButton } from "@/components/ui";
+import { LoadingScreen } from "@/components/loading";
 
 const STATUS_LABEL: Record<string, string> = {
   scheduled: "Programado",
@@ -37,9 +38,7 @@ export default function PanelPage() {
 
   if (loading || !firebaseUser || !profile) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center bg-pp-cream px-6 py-16">
-        <p className="text-pp-brown/70">Cargando…</p>
-      </div>
+      <LoadingScreen />
     );
   }
 

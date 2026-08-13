@@ -24,6 +24,7 @@ export function TablesCard({
 }) {
   const [assigning, setAssigning] = useState(false);
   const [movingUid, setMovingUid] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const eligibleCount = players.filter(
     (p) => p.buyInAt && p.status === "active"
@@ -31,8 +32,16 @@ export function TablesCard({
 
   const handleAssign = async () => {
     setAssigning(true);
+    setError(null);
     try {
       await assignTables(tournament, players);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron armar las mesas."
+      );
     } finally {
       setAssigning(false);
     }
@@ -40,8 +49,14 @@ export function TablesCard({
 
   const handleMove = async (playerUid: string, targetTableId: string) => {
     setMovingUid(playerUid);
+    setError(null);
     try {
       await movePlayerToTable(tournament.id, tables, playerUid, targetTableId);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err instanceof Error ? err.message : "No se pudo mover al jugador."
+      );
     } finally {
       setMovingUid(null);
     }
@@ -62,6 +77,7 @@ export function TablesCard({
         >
           {assigning ? "Armando…" : "Armar mesas"}
         </Button>
+        {error && <p className="text-sm text-red-700">{error}</p>}
       </Card>
     );
   }
@@ -126,6 +142,7 @@ export function TablesCard({
           </div>
         ))}
       </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
     </Card>
   );
 }

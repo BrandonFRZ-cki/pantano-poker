@@ -29,12 +29,17 @@ export function RegistrationCard({
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [eliminatingUid, setEliminatingUid] = useState<string | null>(null);
   const [eliminatorChoice, setEliminatorChoice] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const chipsPerRebuy = chipsValue(tournament.chipValues, tournament.startingStack);
 
   const run = async (uid: string, action: () => Promise<void>) => {
     setBusyUid(uid);
+    setError(null);
     try {
       await action();
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Algo salió mal.");
     } finally {
       setBusyUid(null);
     }
@@ -42,6 +47,7 @@ export function RegistrationCard({
 
   const confirmElimination = async (targetUid: string) => {
     setBusyUid(targetUid);
+    setError(null);
     try {
       await eliminatePlayer(
         tournament,
@@ -49,6 +55,9 @@ export function RegistrationCard({
         targetUid,
         eliminatorChoice || null
       );
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "No se pudo eliminar.");
     } finally {
       setBusyUid(null);
       setEliminatingUid(null);
@@ -120,19 +129,6 @@ export function RegistrationCard({
                       Buy-in
                     </Button>
                   ) : p.status === "eliminated" ? (
-                    isLastElimination && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() =>
-                          run(p.uid, () => undoLastElimination(tournament, p))
-                        }
-                      >
-                        Deshacer eliminación
-                      </Button>
-                    )
-                  ) : (
                     <>
                       <Button
                         variant="secondary"
@@ -144,8 +140,25 @@ export function RegistrationCard({
                           )
                         }
                       >
-                        Recompra
+                        Recompra (reingresa)
                       </Button>
+                      {isLastElimination && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() =>
+                            run(p.uid, () =>
+                              undoLastElimination(tournament, p)
+                            )
+                          }
+                        >
+                          Deshacer eliminación
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
                       <Button
                         variant="secondary"
                         size="sm"
@@ -234,6 +247,7 @@ export function RegistrationCard({
           );
         })}
       </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
     </Card>
   );
 }

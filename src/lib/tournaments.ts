@@ -378,7 +378,11 @@ export async function registerBuyIn(
   );
 }
 
-/** Registra una recompra: mismas fichas que el buy-in inicial. */
+/**
+ * Registra una recompra: mismas fichas que el buy-in inicial. Solo tiene
+ * sentido para un jugador ya eliminado (reingresa a la mesa); por eso
+ * también lo vuelve a marcar como "active".
+ */
 export async function registerRebuy(
   tournament: TournamentSettings,
   targetUid: string,
@@ -400,7 +404,11 @@ export async function registerRebuy(
 
   await updateDoc(
     doc(db, "tournaments", tournament.id, "players", targetUid),
-    { chips: increment(chipsAwarded), rebuyCount: increment(1) }
+    {
+      chips: increment(chipsAwarded),
+      rebuyCount: increment(1),
+      status: "active",
+    }
   );
 }
 
