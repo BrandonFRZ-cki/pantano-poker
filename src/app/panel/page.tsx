@@ -136,6 +136,13 @@ export default function PanelPage() {
           ))}
         </div>
         {error && <p className="text-sm text-red-700 text-center">{error}</p>}
+
+        <Link
+          href="/calculadora"
+          className="text-sm text-pp-brown/50 hover:text-pp-brown/70 underline"
+        >
+          Calculadora de fichas
+        </Link>
       </div>
     </div>
   );
