@@ -8,7 +8,6 @@ import { subscribeToTournament } from "@/lib/tournaments";
 import type { TournamentSettings } from "@/types/tournament";
 import { CHIP_COLOR_LABEL } from "@/lib/tournament-defaults";
 import { formatMoney } from "@/lib/format";
-import { TabBar } from "@/components/tabbar";
 import { Card, IconArrowLeft } from "@/components/ui";
 import { LoadingScreen } from "@/components/loading";
 
@@ -184,8 +183,6 @@ export default function ReglasPage({
           )}
         </Card>
       </div>
-
-      <TabBar tournamentId={id} />
     </div>
   );
 }

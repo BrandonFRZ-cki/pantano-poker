@@ -4,8 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { TabBar } from "@/components/tabbar";
-import { Button, Card, IconArrowLeft } from "@/components/ui";
+import { Avatar, Badge, Button, Card, IconArrowLeft } from "@/components/ui";
 import { LoadingScreen } from "@/components/loading";
 
 function CuentaContent() {
@@ -58,6 +57,18 @@ function CuentaContent() {
           Tu cuenta
         </h1>
 
+        <Card className="flex flex-col items-center gap-2 text-center">
+          <Avatar name={profile.displayName} size={48} />
+          <p className="font-display text-pp-brown">{profile.displayName}</p>
+          {firebaseUser.isAnonymous ? (
+            <Badge tone="neutral">Cuenta de invitado</Badge>
+          ) : (
+            <p className="text-sm text-pp-brown/60">
+              {firebaseUser.email ?? "Sin correo asociado"}
+            </p>
+          )}
+        </Card>
+
         <Card className="flex flex-col gap-4">
           <label className="text-sm text-pp-brown/70">
             Nombre en la mesa
@@ -90,8 +101,6 @@ function CuentaContent() {
           </button>
         </Card>
       </div>
-
-      {fromTournamentId && <TabBar tournamentId={fromTournamentId} />}
     </div>
   );
 }

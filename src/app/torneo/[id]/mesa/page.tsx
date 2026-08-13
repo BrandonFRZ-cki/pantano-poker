@@ -18,7 +18,6 @@ import {
   subscribeToTournament,
 } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
-import { TabBar } from "@/components/tabbar";
 import { SeatDiagram } from "@/components/table-seats";
 import { HandPicker } from "@/components/hand-picker";
 import { Button, Card, IconArrowLeft, IconPause, IconPlay } from "@/components/ui";
@@ -295,8 +294,6 @@ export default function MesaPage({
           </>
         )}
       </div>
-
-      <TabBar tournamentId={id} />
     </div>
   );
 }
