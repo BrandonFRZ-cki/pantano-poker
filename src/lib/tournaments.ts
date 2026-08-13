@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   onSnapshot,
   query,
   setDoc,
@@ -19,6 +20,8 @@ import type {
   Player,
   PlayerRole,
   TournamentSettings,
+  Transaction,
+  TransactionType,
 } from "@/types/tournament";
 
 // Sin caracteres ambiguos (0/O, 1/I) para que sea fácil de tipear en un celular.
@@ -278,6 +281,19 @@ export async function listPlayers(tournamentId: string): Promise<Player[]> {
   return snap.docs.map((d) => d.data() as Player);
 }
 
+/** Lista de jugadores en vivo: cambios de fichas o rol se ven al instante. */
+export function subscribeToPlayers(
+  tournamentId: string,
+  onChange: (players: Player[]) => void
+): () => void {
+  return onSnapshot(
+    collection(db, "tournaments", tournamentId, "players"),
+    (snap) => {
+      onChange(snap.docs.map((d) => d.data() as Player));
+    }
+  );
+}
+
 /**
  * Le asigna o le saca el rol de dealer a un jugador. Solo debería llamarse
  * desde la pantalla del owner (no hay chequeo de permisos acá, lo hacen las
@@ -297,4 +313,128 @@ export async function setPlayerRole(
   await updateDoc(tournamentRef, {
     dealerUids: role === "dealer" ? arrayUnion(targetUid) : arrayRemove(targetUid),
   });
+}
+
+function chipsValue(
+  chipValues: ChipDenominations,
+  counts: ChipDenominations
+): number {
+  return (Object.keys(chipValues) as (keyof ChipDenominations)[]).reduce(
+    (sum, color) => sum + chipValues[color] * counts[color],
+    0
+  );
+}
+
+async function logTransaction(
+  tournamentId: string,
+  playerId: string,
+  type: TransactionType,
+  amount: number,
+  createdBy: string,
+  extra?: { chipsAwarded?: number; reason?: string }
+): Promise<void> {
+  const ref = doc(collection(db, "tournaments", tournamentId, "transactions"));
+  const transaction: Transaction = {
+    id: ref.id,
+    tournamentId,
+    playerId,
+    type,
+    amount,
+    createdAt: Date.now(),
+    createdBy,
+    ...extra,
+  };
+  await setDoc(ref, transaction);
+}
+
+/** Registra el buy-in inicial de un jugador y le entrega su stack de fichas. */
+export async function registerBuyIn(
+  tournament: TournamentSettings,
+  targetUid: string,
+  actingUid: string
+): Promise<void> {
+  const chipsAwarded = chipsValue(
+    tournament.chipValues,
+    tournament.startingStack
+  );
+
+  await logTransaction(
+    tournament.id,
+    targetUid,
+    "buyin",
+    tournament.buyIn,
+    actingUid,
+    { chipsAwarded }
+  );
+
+  await updateDoc(
+    doc(db, "tournaments", tournament.id, "players", targetUid),
+    { chips: chipsAwarded, buyInAt: Date.now(), status: "active" }
+  );
+}
+
+/** Registra una recompra: mismas fichas que el buy-in inicial. */
+export async function registerRebuy(
+  tournament: TournamentSettings,
+  targetUid: string,
+  actingUid: string
+): Promise<void> {
+  const chipsAwarded = chipsValue(
+    tournament.chipValues,
+    tournament.startingStack
+  );
+
+  await logTransaction(
+    tournament.id,
+    targetUid,
+    "rebuy",
+    tournament.rebuyAmount,
+    actingUid,
+    { chipsAwarded }
+  );
+
+  await updateDoc(
+    doc(db, "tournaments", tournament.id, "players", targetUid),
+    { chips: increment(chipsAwarded) }
+  );
+}
+
+/** Registra el addon (una sola vez por jugador). */
+export async function registerAddon(
+  tournament: TournamentSettings,
+  targetUid: string,
+  actingUid: string
+): Promise<void> {
+  const chipsAwarded = chipsValue(tournament.chipValues, tournament.addonStack);
+
+  await logTransaction(
+    tournament.id,
+    targetUid,
+    "addon",
+    tournament.addonAmount,
+    actingUid,
+    { chipsAwarded }
+  );
+
+  await updateDoc(
+    doc(db, "tournaments", tournament.id, "players", targetUid),
+    { chips: increment(chipsAwarded), usedAddon: true }
+  );
+}
+
+/** Registra una multa de las reglas de la casa (no cambia fichas). */
+export async function registerFine(
+  tournament: TournamentSettings,
+  targetUid: string,
+  actingUid: string,
+  reason?: string
+): Promise<void> {
+  await logTransaction(
+    tournament.id,
+    targetUid,
+    "fine",
+    tournament.houseRuleFine,
+    actingUid,
+    reason ? { reason } : undefined
+  );
 }

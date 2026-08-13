@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  listPlayers,
   setPlayerRole,
   subscribeToPlayer,
+  subscribeToPlayers,
   subscribeToTournament,
 } from "@/lib/tournaments";
 import type { Player, TournamentSettings } from "@/types/tournament";
@@ -23,6 +23,8 @@ import {
   LinkButton,
 } from "@/components/ui";
 import { TimerCard } from "@/components/timer";
+import { RegistrationCard } from "@/components/roster";
+import { formatChips } from "@/lib/format";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Dueño del torneo",
@@ -60,10 +62,6 @@ export default function TorneoDetallePage({
     }
   }, [loading, firebaseUser, router]);
 
-  const reloadPlayers = async () => {
-    setPlayers(await listPlayers(id));
-  };
-
   // Torneo y jugador en vivo: así el timer, el estado (pausado/en curso) y
   // un cambio de rol se ven al instante en todos los celulares.
   useEffect(() => {
@@ -92,17 +90,14 @@ export default function TorneoDetallePage({
   }, [id, profile]);
 
   const isOwner = tournament?.ownerUid === profile?.uid;
+  const isDealer = !!tournament?.dealerUids.includes(profile?.uid ?? "");
 
+  // Lista de jugadores en vivo, solo la necesitan quienes pueden actuar
+  // sobre ella (dealers para fichas, dueño para roles).
   useEffect(() => {
-    if (!isOwner) return;
-    let cancelled = false;
-    listPlayers(id).then((list) => {
-      if (!cancelled) setPlayers(list);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [isOwner, id]);
+    if (!isDealer) return;
+    return subscribeToPlayers(id, setPlayers);
+  }, [isDealer, id]);
 
   if (loading || !firebaseUser || !profile || fetching) {
     return (
@@ -130,7 +125,6 @@ export default function TorneoDetallePage({
   // siempre se te trata como tal, aunque ese documento sea viejo.
   const effectiveRole = isOwner ? "owner" : player.role;
 
-  const isDealer = tournament.dealerUids.includes(profile.uid);
   const joinLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/torneo/unirse?code=${tournament.joinCode}`
@@ -149,7 +143,6 @@ export default function TorneoDetallePage({
     setSavingUid(targetUid);
     try {
       await setPlayerRole(id, targetUid, makeDealer ? "dealer" : "player");
-      await reloadPlayers();
     } finally {
       setSavingUid(null);
     }
@@ -180,6 +173,11 @@ export default function TorneoDetallePage({
           <Badge tone={ROLE_TONE[effectiveRole]}>
             {ROLE_LABEL[effectiveRole] ?? effectiveRole}
           </Badge>
+          <p className="text-sm text-pp-brown/70">
+            {player.buyInAt
+              ? `Tu stack: ${formatChips(player.chips)} fichas`
+              : "Todavía no te registraron el buy-in"}
+          </p>
         </div>
 
         <TimerCard tournament={tournament} isDealer={isDealer} />
@@ -210,12 +208,20 @@ export default function TorneoDetallePage({
           </Card>
         )}
 
+        {isDealer && (
+          <RegistrationCard
+            tournament={tournament}
+            players={players}
+            actingUid={profile.uid}
+          />
+        )}
+
         {isOwner && (
           <Card className="flex flex-col gap-4">
             <div className="flex items-center gap-2 text-pp-brown/70">
               <IconUsers />
               <p className="text-sm font-medium">
-                Jugadores ({players.length})
+                Roles ({players.length} jugadores)
                 {tournament.dealerMode === "rotating" && (
                   <span className="text-pp-brown/50">
                     {" "}
@@ -258,7 +264,7 @@ export default function TorneoDetallePage({
         )}
 
         <Card className="border-dashed text-center text-pp-brown/70 text-sm">
-          Las mesas, las recompras y el bote se construyen en la próxima
+          Las mesas, las eliminaciones y el bote se construyen en la próxima
           fase.
         </Card>
       </div>

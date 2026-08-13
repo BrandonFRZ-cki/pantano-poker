@@ -124,6 +124,10 @@ export interface Player {
   seat: number | null;
   chips: number;
   status: PlayerStatus;
+  /** epoch ms en que el dealer le registró el buy-in inicial; sin esto, todavía no jugó */
+  buyInAt?: number;
+  /** ya usó su addon (solo se puede una vez) */
+  usedAddon?: boolean;
   eliminatedAt?: number;
   /** playerId de quien lo eliminó, para asignar el bounty */
   eliminatedBy?: string;
