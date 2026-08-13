@@ -2,6 +2,7 @@
 
 import type { Player } from "@/types/tournament";
 import { formatChips } from "@/lib/format";
+import { rankPlayers } from "@/lib/prizes";
 import { Avatar, Card } from "@/components/ui";
 
 function Row({
@@ -59,15 +60,10 @@ export function StandingsCard({
   currentUid: string;
 }) {
   const registered = players.filter((p) => p.buyInAt);
-  const totalRegistered = registered.length;
+  const ranked = rankPlayers(players);
 
-  const active = registered
-    .filter((p) => p.status === "active")
-    .sort((a, b) => b.chips - a.chips);
-
-  const eliminated = registered
-    .filter((p) => p.status === "eliminated")
-    .sort((a, b) => (b.eliminationOrder ?? 0) - (a.eliminationOrder ?? 0));
+  const active = ranked.filter((r) => r.player.status === "active");
+  const eliminated = ranked.filter((r) => r.player.status === "eliminated");
 
   if (registered.length === 0) return null;
 
@@ -83,13 +79,13 @@ export function StandingsCard({
       </p>
 
       <div className="flex flex-col gap-2.5">
-        {active.map((p, i) => (
+        {active.map((r) => (
           <Row
-            key={p.uid}
-            rank={`#${i + 1}`}
-            player={p}
+            key={r.player.uid}
+            rank={`${r.rank}º`}
+            player={r.player}
             currentUid={currentUid}
-            extra={[`${formatChips(p.chips)} fichas`, bountyText(p)]
+            extra={[`${formatChips(r.player.chips)} fichas`, bountyText(r.player)]
               .filter(Boolean)
               .join(" · ")}
           />
@@ -99,20 +95,20 @@ export function StandingsCard({
       {eliminated.length > 0 && (
         <div className="flex flex-col gap-2.5 pt-3 border-t border-pp-green-mid/10">
           <p className="text-xs text-pp-brown/50">Eliminados</p>
-          {eliminated.map((p) => {
+          {eliminated.map((r) => {
             const eliminator = registered.find(
-              (other) => other.uid === p.eliminatedBy
+              (other) => other.uid === r.player.eliminatedBy
             );
             return (
               <Row
-                key={p.uid}
-                rank={`${totalRegistered - (p.eliminationOrder ?? 0) + 1}º`}
-                player={p}
+                key={r.player.uid}
+                rank={`${r.rank}º`}
+                player={r.player}
                 currentUid={currentUid}
                 eliminated
                 extra={[
                   eliminator ? `eliminado por ${eliminator.displayName}` : null,
-                  bountyText(p),
+                  bountyText(r.player),
                 ]
                   .filter(Boolean)
                   .join(" · ")}

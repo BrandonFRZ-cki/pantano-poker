@@ -18,6 +18,31 @@ import type { Player, PokerTable, TournamentSettings } from "@/types/tournament"
 import { formatChips } from "@/lib/format";
 import { Avatar, Badge, Button, Card } from "@/components/ui";
 
+/**
+ * Candidatos a "quién lo eliminó": solo jugadores activos de la misma mesa
+ * (un all-in solo lo gana alguien que estaba en esa mano). Si el dealer es
+ * fijo (no juega), se lo excluye aunque por algún motivo tenga buy-in.
+ */
+function sameTableActivePlayers(
+  target: Player,
+  players: Player[],
+  tables: PokerTable[],
+  tournament: TournamentSettings
+): Player[] {
+  const table = tables.find((t) => t.playerIds.includes(target.uid));
+  if (!table) return [];
+  return players.filter(
+    (other) =>
+      other.status === "active" &&
+      !!other.buyInAt &&
+      table.playerIds.includes(other.uid) &&
+      !(
+        tournament.dealerMode === "fixed" &&
+        tournament.dealerUids.includes(other.uid)
+      )
+  );
+}
+
 /** Tarjeta del dealer: registrar buy-in, recompra, addon, multas y eliminaciones. */
 export function RegistrationCard({
   tournament,
@@ -208,6 +233,9 @@ export function RegistrationCard({
                           {eliminator && ` por ${eliminator.displayName}`}
                         </span>
                       )}
+                      {p.status === "eliminated" && p.rebuyRequestedAt && (
+                        <Badge tone="dealer">🙋 pidió recompra</Badge>
+                      )}
                     </p>
                     {isOwner && p.isLocal && (
                       <Link
@@ -266,11 +294,18 @@ export function RegistrationCard({
                           disabled={busy}
                           onClick={() =>
                             run(p.uid, () =>
-                              registerRebuy(tournament, p.uid, actingUid)
+                              registerRebuy(
+                                tournament,
+                                p.uid,
+                                actingUid,
+                                tables
+                              )
                             )
                           }
                         >
-                          Recompra (reingresa)
+                          {p.rebuyRequestedAt
+                            ? "Aprobar recompra"
+                            : "Recompra (reingresa)"}
                         </Button>
                       ) : (
                         <span className="text-xs text-pp-brown/40 self-center">
@@ -345,11 +380,8 @@ export function RegistrationCard({
                     onChange={(e) => setEliminatorChoice(e.target.value)}
                   >
                     <option value="">Sin bounty / no se sabe</option>
-                    {players
-                      .filter(
-                        (other) =>
-                          other.uid !== p.uid && other.status === "active"
-                      )
+                    {sameTableActivePlayers(p, players, tables, tournament)
+                      .filter((other) => other.uid !== p.uid)
                       .map((other) => (
                         <option key={other.uid} value={other.uid}>
                           {other.displayName}
