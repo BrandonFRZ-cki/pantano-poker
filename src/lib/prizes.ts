@@ -48,6 +48,42 @@ export interface PotSummary {
   netPool: number;
   totalFines: number;
   prizes: PrizeAmount[];
+  /** true si hay un monto garantizado para el 1er puesto y el bote ya lo cubre */
+  guaranteedMet: boolean;
+}
+
+/**
+ * Reparte el bote entre los puestos pagados (tournament.prizeSplit, uno por
+ * puesto). Si hay un monto garantizado para el 1er puesto:
+ * - si el bote lo alcanza a cubrir, el 1er puesto se lleva ese monto fijo y
+ *   el resto de puestos se reparten lo que sobra, en la misma proporción
+ *   relativa que tenían entre ellos.
+ * - si el bote todavía no lo alcanza (la "burbuja" no se completó), se cae
+ *   al reparto puramente por porcentaje, como si no hubiera garantía.
+ */
+function splitPrizes(netPool: number, prizeSplit: number[], guaranteedFirstPlace: number) {
+  const guaranteeApplies =
+    guaranteedFirstPlace > 0 &&
+    prizeSplit.length > 1 &&
+    netPool >= guaranteedFirstPlace;
+
+  if (!guaranteeApplies) {
+    return {
+      amounts: prizeSplit.map((pct) => netPool * pct),
+      guaranteedMet: guaranteedFirstPlace > 0 && netPool >= guaranteedFirstPlace,
+    };
+  }
+
+  const remaining = netPool - guaranteedFirstPlace;
+  const restSplit = prizeSplit.slice(1);
+  const restTotalPct = restSplit.reduce((sum, p) => sum + p, 0) || 1;
+
+  const amounts = [
+    guaranteedFirstPlace,
+    ...restSplit.map((pct) => remaining * (pct / restTotalPct)),
+  ];
+
+  return { amounts, guaranteedMet: true };
 }
 
 export function computePot(
@@ -75,11 +111,17 @@ export function computePot(
 
   const ranked = rankPlayers(players);
 
-  const prizes: PrizeAmount[] = tournament.prizeSplit.map((pct, i) => ({
+  const { amounts, guaranteedMet } = splitPrizes(
+    netPool,
+    tournament.prizeSplit,
+    tournament.guaranteedFirstPlace ?? 0
+  );
+
+  const prizes: PrizeAmount[] = amounts.map((amount, i) => ({
     rank: i + 1,
-    amount: netPool * pct,
+    amount,
     player: ranked.find((r) => r.rank === i + 1)?.player ?? null,
   }));
 
-  return { totalCollected, totalBounty, netPool, totalFines, prizes };
+  return { totalCollected, totalBounty, netPool, totalFines, prizes, guaranteedMet };
 }

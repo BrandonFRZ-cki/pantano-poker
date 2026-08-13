@@ -20,6 +20,7 @@ import type {
   AppUser,
   BlindLevel,
   ChipDenominations,
+  ExtraChip,
   Player,
   PlayerRole,
   PokerTable,
@@ -46,11 +47,13 @@ export interface CreateTournamentInput {
   addonAmount: number;
   bountyPerElimination: number;
   prizeSplit: number[];
+  guaranteedFirstPlace: number;
   houseRuleFine: number;
   houseRules: string[];
   chipValues: ChipDenominations;
   startingStack: ChipDenominations;
   addonStack: ChipDenominations;
+  extraChips: ExtraChip[];
   blindStructure: BlindLevel[];
   rebuyUntilLevel: number;
   addonLevel: number;
@@ -349,6 +352,14 @@ export function chipsValue(
   );
 }
 
+/** Lo mismo que chipsValue pero para los colores extra que agregó el dueño. */
+export function extraChipsValue(
+  extraChips: ExtraChip[],
+  field: "startingStack" | "addonStack"
+): number {
+  return extraChips.reduce((sum, chip) => sum + chip.value * chip[field], 0);
+}
+
 async function logTransaction(
   tournamentId: string,
   playerId: string,
@@ -377,10 +388,9 @@ export async function registerBuyIn(
   targetUid: string,
   actingUid: string
 ): Promise<void> {
-  const chipsAwarded = chipsValue(
-    tournament.chipValues,
-    tournament.startingStack
-  );
+  const chipsAwarded =
+    chipsValue(tournament.chipValues, tournament.startingStack) +
+    extraChipsValue(tournament.extraChips ?? [], "startingStack");
 
   await logTransaction(
     tournament.id,
@@ -407,10 +417,9 @@ export async function registerRebuy(
   targetUid: string,
   actingUid: string
 ): Promise<void> {
-  const chipsAwarded = chipsValue(
-    tournament.chipValues,
-    tournament.startingStack
-  );
+  const chipsAwarded =
+    chipsValue(tournament.chipValues, tournament.startingStack) +
+    extraChipsValue(tournament.extraChips ?? [], "startingStack");
 
   await logTransaction(
     tournament.id,
@@ -440,7 +449,9 @@ export async function registerAddon(
   targetUid: string,
   actingUid: string
 ): Promise<void> {
-  const chipsAwarded = chipsValue(tournament.chipValues, tournament.addonStack);
+  const chipsAwarded =
+    chipsValue(tournament.chipValues, tournament.addonStack) +
+    extraChipsValue(tournament.extraChips ?? [], "addonStack");
 
   await logTransaction(
     tournament.id,

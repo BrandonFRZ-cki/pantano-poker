@@ -1,10 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { CHIP_COLOR_LABEL } from "@/lib/tournament-defaults";
+import { useState, type ReactNode } from "react";
+import { CHIP_COLOR_HEX, CHIP_COLOR_LABEL } from "@/lib/tournament-defaults";
 import type { TournamentFormState } from "@/lib/tournament-form-state";
 import { IconChip, IconClock, IconGavel, IconInfo } from "@/components/ui";
-import type { BlindLevel, ChipDenominations } from "@/types/tournament";
+import type { BlindLevel, ChipDenominations, ExtraChip } from "@/types/tournament";
 
 type ChipColor = keyof ChipDenominations;
 const CHIP_COLORS = Object.keys(CHIP_COLOR_LABEL) as ChipColor[];
@@ -16,6 +16,15 @@ function numberInputProps(value: number) {
 const inputClass =
   "rounded-lg border border-pp-green-mid/40 bg-white px-3 py-2 text-pp-brown outline-none focus:border-pp-green-dark w-full";
 const labelClass = "text-sm text-pp-brown/70";
+
+function ChipDot({ hex }: { hex: string }) {
+  return (
+    <span
+      className="inline-block w-5 h-5 rounded-full border-2 border-dashed shrink-0"
+      style={{ backgroundColor: hex, borderColor: "rgba(0,0,0,0.15)" }}
+    />
+  );
+}
 
 function FormSection({
   icon,
@@ -42,6 +51,32 @@ function FormSection({
   );
 }
 
+/** Genera una estructura de niveles doblando las ciegas cada N niveles, para no tener que escribir todo a mano. */
+function generateBlindStructure(
+  startSmall: number,
+  durationMinutes: number,
+  doubleEvery: number,
+  levelCount: number,
+  breakEvery: number
+): BlindLevel[] {
+  const levels: BlindLevel[] = [];
+  for (let i = 0; i < levelCount; i++) {
+    const doublings = Math.floor(i / Math.max(doubleEvery, 1));
+    const factor = Math.pow(2, doublings);
+    const smallBlind = Math.round((startSmall * factor) / 5) * 5 || startSmall;
+    const bigBlind = smallBlind * 2;
+    levels.push({
+      level: i + 1,
+      smallBlind,
+      bigBlind,
+      ante: bigBlind,
+      durationMinutes,
+      isBreak: breakEvery > 0 && (i + 1) % breakEvery === 0,
+    });
+  }
+  return levels;
+}
+
 export function TournamentFormFields({
   form,
   setForm,
@@ -49,6 +84,12 @@ export function TournamentFormFields({
   form: TournamentFormState;
   setForm: (updater: (prev: TournamentFormState) => TournamentFormState) => void;
 }) {
+  const [quickStart, setQuickStart] = useState(25);
+  const [quickDuration, setQuickDuration] = useState(15);
+  const [quickDoubleEvery, setQuickDoubleEvery] = useState(2);
+  const [quickLevels, setQuickLevels] = useState(12);
+  const [quickBreakEvery, setQuickBreakEvery] = useState(6);
+
   const updateChip = (
     group: "chipValues" | "startingStack" | "addonStack",
     color: ChipColor,
@@ -82,6 +123,9 @@ export function TournamentFormFields({
     }));
   };
 
+  const clampToLength = (lvl: number, length: number) =>
+    Math.min(Math.max(lvl, 1), length || 1);
+
   const addBlindLevel = () => {
     setForm((prev) => {
       const last = prev.blindStructure[prev.blindStructure.length - 1];
@@ -106,13 +150,29 @@ export function TournamentFormFields({
       const blindStructure = prev.blindStructure
         .filter((_, i) => i !== index)
         .map((lvl, i) => ({ ...lvl, level: i + 1 }));
-      const clampLevel = (lvl: number) =>
-        Math.min(Math.max(lvl, 1), blindStructure.length || 1);
       return {
         ...prev,
         blindStructure,
-        rebuyUntilLevel: clampLevel(prev.rebuyUntilLevel),
-        addonLevel: clampLevel(prev.addonLevel),
+        rebuyUntilLevel: clampToLength(prev.rebuyUntilLevel, blindStructure.length),
+        addonLevel: clampToLength(prev.addonLevel, blindStructure.length),
+      };
+    });
+  };
+
+  const applyQuickFill = () => {
+    setForm((prev) => {
+      const blindStructure = generateBlindStructure(
+        quickStart,
+        quickDuration,
+        quickDoubleEvery,
+        quickLevels,
+        quickBreakEvery
+      );
+      return {
+        ...prev,
+        blindStructure,
+        rebuyUntilLevel: clampToLength(prev.rebuyUntilLevel, blindStructure.length),
+        addonLevel: clampToLength(prev.addonLevel, blindStructure.length),
       };
     });
   };
@@ -135,8 +195,65 @@ export function TournamentFormFields({
     }));
   };
 
+  const updatePrizeSplit = (index: number, value: number) => {
+    setForm((prev) => ({
+      ...prev,
+      prizeSplit: prev.prizeSplit.map((p, i) => (i === index ? value : p)),
+    }));
+  };
+
+  const addPrizePlace = () => {
+    setForm((prev) => ({ ...prev, prizeSplit: [...prev.prizeSplit, 0] }));
+  };
+
+  const removePrizePlace = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      prizeSplit: prev.prizeSplit.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateExtraChip = (
+    index: number,
+    field: keyof ExtraChip,
+    value: string | number
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      extraChips: prev.extraChips.map((c, i) =>
+        i === index ? { ...c, [field]: value } : c
+      ),
+    }));
+  };
+
+  const addExtraChip = () => {
+    setForm((prev) => ({
+      ...prev,
+      extraChips: [
+        ...prev.extraChips,
+        {
+          id: `extra-${Date.now()}`,
+          label: "",
+          hex: "#8a4fd6",
+          value: 0,
+          startingStack: 0,
+          addonStack: 0,
+        },
+      ],
+    }));
+  };
+
+  const removeExtraChip = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      extraChips: prev.extraChips.filter((_, i) => i !== index),
+    }));
+  };
+
   const levelLabel = (lvl: BlindLevel) =>
     `Nivel ${lvl.level} — ${lvl.smallBlind}/${lvl.bigBlind}${lvl.isBreak ? " (receso)" : ""}`;
+
+  const prizeTotal = form.prizeSplit.reduce((sum, p) => sum + p, 0);
 
   return (
     <>
@@ -231,40 +348,75 @@ export function TournamentFormFields({
             />
           </label>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+
+        <div className="flex flex-col gap-2 pt-2 border-t border-pp-green-mid/10">
+          <div className="flex items-center justify-between">
+            <p className={labelClass}>Reparto de premios</p>
+            <button
+              type="button"
+              onClick={addPrizePlace}
+              className="text-sm text-pp-green-dark underline"
+            >
+              + Agregar puesto
+            </button>
+          </div>
+          {form.prizeSplit.map((pct, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <span className="text-xs text-pp-brown/50 w-16 shrink-0">
+                {index + 1}º puesto
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className={inputClass}
+                {...numberInputProps(pct)}
+                onChange={(e) =>
+                  updatePrizeSplit(index, e.target.valueAsNumber || 0)
+                }
+              />
+              <span className="text-xs text-pp-brown/50">%</span>
+              {form.prizeSplit.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removePrizePlace(index)}
+                  className="text-pp-brown/40 hover:text-red-700"
+                  aria-label={`Sacar puesto ${index + 1}`}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <p
+            className={`text-xs ${prizeTotal === 100 ? "text-pp-brown/40" : "text-red-700"}`}
+          >
+            Suma: {prizeTotal}% {prizeTotal !== 100 && "(debería dar 100%)"}
+          </p>
           <label className={labelClass}>
-            Reparto 1º puesto (%)
+            Monto garantizado para el 1er puesto ($, opcional)
             <input
               type="number"
               min={0}
-              max={100}
+              step="1"
               className={inputClass}
-              {...numberInputProps(form.prizeFirst)}
+              {...numberInputProps(form.guaranteedFirstPlace)}
               onChange={(e) =>
                 setForm((p) => ({
                   ...p,
-                  prizeFirst: e.target.valueAsNumber || 0,
+                  guaranteedFirstPlace: e.target.valueAsNumber || 0,
                 }))
               }
             />
           </label>
-          <label className={labelClass}>
-            Reparto 2º puesto (%)
-            <input
-              type="number"
-              min={0}
-              max={100}
-              className={inputClass}
-              {...numberInputProps(form.prizeSecond)}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  prizeSecond: e.target.valueAsNumber || 0,
-                }))
-              }
-            />
-          </label>
+          <p className="text-xs text-pp-brown/50">
+            Si lo dejas en 0, el reparto es puro porcentaje. Si pones un
+            monto, el 1er puesto se asegura esa plata y el resto se reparte
+            con lo que sobre — a menos que el bote todavía no llegue a cubrir
+            la garantía, ahí se usa el porcentaje mientras tanto.
+          </p>
         </div>
+
         <label className={labelClass}>
           Jugadores por mesa
           <input
@@ -303,17 +455,15 @@ export function TournamentFormFields({
       </FormSection>
 
       <FormSection icon={<IconChip />} title="Fichas">
-        <div className="grid grid-cols-4 gap-2 text-xs text-pp-brown/60 px-1">
-          <span>Color</span>
+        <div className="grid grid-cols-[1.5rem_1fr_1fr_1fr] gap-2 text-xs text-pp-brown/60 px-1">
+          <span></span>
           <span>Valor</span>
           <span>Stack inicial</span>
           <span>Addon</span>
         </div>
         {CHIP_COLORS.map((color) => (
-          <div key={color} className="grid grid-cols-4 gap-2 items-center">
-            <span className="text-sm text-pp-brown">
-              {CHIP_COLOR_LABEL[color]}
-            </span>
+          <div key={color} className="grid grid-cols-[1.5rem_1fr_1fr_1fr] gap-2 items-center">
+            <ChipDot hex={CHIP_COLOR_HEX[color]} />
             <input
               type="number"
               min={0}
@@ -343,6 +493,84 @@ export function TournamentFormFields({
             />
           </div>
         ))}
+        <p className="text-xs text-pp-brown/40 -mt-1">
+          {CHIP_COLORS.map((c) => CHIP_COLOR_LABEL[c]).join(" · ")}
+        </p>
+
+        <div className="flex items-center justify-between pt-2 border-t border-pp-green-mid/10">
+          <p className={labelClass}>Colores extra</p>
+          <button
+            type="button"
+            onClick={addExtraChip}
+            className="text-sm text-pp-green-dark underline"
+          >
+            + Agregar color
+          </button>
+        </div>
+        {form.extraChips.length === 0 && (
+          <p className="text-sm text-pp-brown/60">
+            Los 5 colores de arriba no alcanzan? Agrega los que necesites,
+            con su propio color.
+          </p>
+        )}
+        {form.extraChips.map((chip, index) => (
+          <div
+            key={chip.id}
+            className="grid grid-cols-[1.5rem_1fr_4.5rem_4.5rem_4.5rem_1.5rem] gap-2 items-center"
+          >
+            <input
+              type="color"
+              value={chip.hex}
+              onChange={(e) => updateExtraChip(index, "hex", e.target.value)}
+              className="w-6 h-6 rounded-full border-0 p-0 bg-transparent cursor-pointer"
+              aria-label="Color de la ficha"
+            />
+            <input
+              className={inputClass}
+              placeholder="Nombre"
+              value={chip.label}
+              onChange={(e) => updateExtraChip(index, "label", e.target.value)}
+            />
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              placeholder="Valor"
+              {...numberInputProps(chip.value)}
+              onChange={(e) =>
+                updateExtraChip(index, "value", e.target.valueAsNumber || 0)
+              }
+            />
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              placeholder="Stack"
+              {...numberInputProps(chip.startingStack)}
+              onChange={(e) =>
+                updateExtraChip(index, "startingStack", e.target.valueAsNumber || 0)
+              }
+            />
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              placeholder="Addon"
+              {...numberInputProps(chip.addonStack)}
+              onChange={(e) =>
+                updateExtraChip(index, "addonStack", e.target.valueAsNumber || 0)
+              }
+            />
+            <button
+              type="button"
+              onClick={() => removeExtraChip(index)}
+              className="text-pp-brown/40 hover:text-red-700"
+              aria-label={`Sacar color ${chip.label || index + 1}`}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
       </FormSection>
 
       <FormSection
@@ -358,6 +586,76 @@ export function TournamentFormFields({
           </button>
         }
       >
+        <div className="flex flex-col gap-2 rounded-xl bg-pp-brown/5 px-3 py-3">
+          <p className="text-xs font-medium text-pp-brown/70">
+            Relleno rápido (arma toda la tabla de una vez, después la puedes
+            ajustar nivel por nivel)
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <label className="text-xs text-pp-brown/60">
+              Ciega chica inicial
+              <input
+                type="number"
+                min={1}
+                className={inputClass}
+                value={quickStart}
+                onChange={(e) => setQuickStart(e.target.valueAsNumber || 0)}
+              />
+            </label>
+            <label className="text-xs text-pp-brown/60">
+              Minutos por nivel
+              <input
+                type="number"
+                min={1}
+                className={inputClass}
+                value={quickDuration}
+                onChange={(e) => setQuickDuration(e.target.valueAsNumber || 0)}
+              />
+            </label>
+            <label className="text-xs text-pp-brown/60">
+              Duplicar cada
+              <input
+                type="number"
+                min={1}
+                className={inputClass}
+                value={quickDoubleEvery}
+                onChange={(e) =>
+                  setQuickDoubleEvery(e.target.valueAsNumber || 1)
+                }
+              />
+            </label>
+            <label className="text-xs text-pp-brown/60">
+              Cantidad de niveles
+              <input
+                type="number"
+                min={1}
+                className={inputClass}
+                value={quickLevels}
+                onChange={(e) => setQuickLevels(e.target.valueAsNumber || 1)}
+              />
+            </label>
+            <label className="text-xs text-pp-brown/60">
+              Receso cada (0 = ninguno)
+              <input
+                type="number"
+                min={0}
+                className={inputClass}
+                value={quickBreakEvery}
+                onChange={(e) =>
+                  setQuickBreakEvery(e.target.valueAsNumber || 0)
+                }
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={applyQuickFill}
+            className="self-start text-sm font-medium text-pp-green-dark underline"
+          >
+            Generar tabla (reemplaza los niveles de abajo)
+          </button>
+        </div>
+
         <div className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr_3.5rem_2rem] gap-2 text-xs text-pp-brown/60 px-1">
           <span>#</span>
           <span>Chica</span>

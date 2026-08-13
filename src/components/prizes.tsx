@@ -67,6 +67,14 @@ export function PrizesCard({
           ` · bounty pagado ${formatMoney(pot.totalBounty)}`}
       </p>
 
+      {tournament.guaranteedFirstPlace > 0 && (
+        <p className="text-xs text-pp-brown/50">
+          {pot.guaranteedMet
+            ? `1er puesto asegurado: ${formatMoney(tournament.guaranteedFirstPlace)}`
+            : `Todavía no se alcanza el mínimo garantizado para el 1er puesto (${formatMoney(tournament.guaranteedFirstPlace)}), así que por ahora se reparte por porcentaje.`}
+        </p>
+      )}
+
       <div className="flex flex-col gap-2.5">
         {pot.prizes.map((prize) => (
           <div

@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { createTournament } from "@/lib/tournaments";
 import {
+  BALA_TOURNAMENT_STATE,
   BLANK_TOURNAMENT_STATE,
   formStateToInput,
   PANTANO_TOURNAMENT_STATE,
   type TournamentFormState,
 } from "@/lib/tournament-form-state";
 import { TournamentFormFields } from "@/components/tournament-form-fields";
-import { Button } from "@/components/ui";
+import { Button, IconArrowLeft } from "@/components/ui";
 import { LoadingScreen } from "@/components/loading";
 
 export default function NuevoTorneoPage() {
@@ -54,7 +56,16 @@ export default function NuevoTorneoPage() {
 
   return (
     <div className="flex flex-col flex-1 items-center bg-pp-cream px-6 py-12 gap-8">
-      <div className="text-center max-w-md flex flex-col items-center gap-2">
+      <div className="w-full max-w-lg flex flex-col items-center gap-2 text-center">
+        <div className="flex items-center gap-3 w-full max-w-md">
+          <Link
+            href="/panel"
+            className="flex items-center gap-1.5 text-sm text-pp-brown/60 hover:text-pp-brown"
+          >
+            <IconArrowLeft />
+            Mis torneos
+          </Link>
+        </div>
         <Image
           src="/icons/logo.svg"
           alt="Pantano Poker"
@@ -65,7 +76,7 @@ export default function NuevoTorneoPage() {
         <h1 className="font-display text-2xl text-pp-green-dark">
           Crear torneo
         </h1>
-        <div className="flex gap-2 justify-center mt-4">
+        <div className="flex flex-wrap gap-2 justify-center mt-4">
           <Button
             type="button"
             variant="secondary"
@@ -73,6 +84,14 @@ export default function NuevoTorneoPage() {
             onClick={() => setForm(PANTANO_TOURNAMENT_STATE)}
           >
             Usar valores de Pantano Poker
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setForm(BALA_TOURNAMENT_STATE)}
+          >
+            Usar valores de Torneo Bala (rápido)
           </Button>
           <Button
             type="button"

@@ -1,8 +1,13 @@
 // Estado del formulario de torneo, compartido entre "Crear torneo" y
 // "Editar torneo" para no duplicar la lógica de conversión.
 
-import type { BlindLevel, ChipDenominations, TournamentSettings } from "@/types/tournament";
-import { EMPTY_CHIPS, PANTANO_DEFAULTS } from "@/lib/tournament-defaults";
+import type {
+  BlindLevel,
+  ChipDenominations,
+  ExtraChip,
+  TournamentSettings,
+} from "@/types/tournament";
+import { BALA_DEFAULTS, EMPTY_CHIPS, PANTANO_DEFAULTS } from "@/lib/tournament-defaults";
 import type { CreateTournamentInput } from "@/lib/tournaments";
 
 export interface TournamentFormState {
@@ -11,13 +16,15 @@ export interface TournamentFormState {
   rebuyAmount: number;
   addonAmount: number;
   bountyPerElimination: number;
-  prizeFirst: number;
-  prizeSecond: number;
+  /** % del bote por puesto pagado; el largo del array = cuántos puestos pagan */
+  prizeSplit: number[];
+  guaranteedFirstPlace: number;
   houseRuleFine: number;
   houseRules: string[];
   chipValues: ChipDenominations;
   startingStack: ChipDenominations;
   addonStack: ChipDenominations;
+  extraChips: ExtraChip[];
   blindStructure: BlindLevel[];
   rebuyUntilLevel: number;
   addonLevel: number;
@@ -31,13 +38,14 @@ export const BLANK_TOURNAMENT_STATE: TournamentFormState = {
   rebuyAmount: 0,
   addonAmount: 0,
   bountyPerElimination: 0,
-  prizeFirst: 70,
-  prizeSecond: 30,
+  prizeSplit: [70, 30],
+  guaranteedFirstPlace: 0,
   houseRuleFine: 0,
   houseRules: [],
   chipValues: { ...EMPTY_CHIPS },
   startingStack: { ...EMPTY_CHIPS },
   addonStack: { ...EMPTY_CHIPS },
+  extraChips: [],
   blindStructure: [
     { level: 1, smallBlind: 25, bigBlind: 50, ante: 0, durationMinutes: 15 },
   ],
@@ -53,18 +61,40 @@ export const PANTANO_TOURNAMENT_STATE: TournamentFormState = {
   rebuyAmount: PANTANO_DEFAULTS.rebuyAmount,
   addonAmount: PANTANO_DEFAULTS.addonAmount,
   bountyPerElimination: PANTANO_DEFAULTS.bountyPerElimination,
-  prizeFirst: PANTANO_DEFAULTS.prizeSplitFirst,
-  prizeSecond: PANTANO_DEFAULTS.prizeSplitSecond,
+  prizeSplit: [...PANTANO_DEFAULTS.prizeSplit],
+  guaranteedFirstPlace: PANTANO_DEFAULTS.guaranteedFirstPlace,
   houseRuleFine: PANTANO_DEFAULTS.houseRuleFine,
   houseRules: [...PANTANO_DEFAULTS.houseRules],
   chipValues: PANTANO_DEFAULTS.chipValues,
   startingStack: PANTANO_DEFAULTS.startingStack,
   addonStack: PANTANO_DEFAULTS.addonStack,
+  extraChips: [...PANTANO_DEFAULTS.extraChips],
   blindStructure: PANTANO_DEFAULTS.blindStructure,
   rebuyUntilLevel: PANTANO_DEFAULTS.rebuyUntilLevel,
   addonLevel: PANTANO_DEFAULTS.addonLevel,
   seatsPerTable: PANTANO_DEFAULTS.seatsPerTable,
   dealerMode: PANTANO_DEFAULTS.dealerMode,
+};
+
+export const BALA_TOURNAMENT_STATE: TournamentFormState = {
+  name: BALA_DEFAULTS.name,
+  buyIn: BALA_DEFAULTS.buyIn,
+  rebuyAmount: BALA_DEFAULTS.rebuyAmount,
+  addonAmount: BALA_DEFAULTS.addonAmount,
+  bountyPerElimination: BALA_DEFAULTS.bountyPerElimination,
+  prizeSplit: [...BALA_DEFAULTS.prizeSplit],
+  guaranteedFirstPlace: BALA_DEFAULTS.guaranteedFirstPlace,
+  houseRuleFine: BALA_DEFAULTS.houseRuleFine,
+  houseRules: [...BALA_DEFAULTS.houseRules],
+  chipValues: BALA_DEFAULTS.chipValues,
+  startingStack: BALA_DEFAULTS.startingStack,
+  addonStack: BALA_DEFAULTS.addonStack,
+  extraChips: [...BALA_DEFAULTS.extraChips],
+  blindStructure: BALA_DEFAULTS.blindStructure,
+  rebuyUntilLevel: BALA_DEFAULTS.rebuyUntilLevel,
+  addonLevel: BALA_DEFAULTS.addonLevel,
+  seatsPerTable: BALA_DEFAULTS.seatsPerTable,
+  dealerMode: BALA_DEFAULTS.dealerMode,
 };
 
 export function formStateToInput(
@@ -76,12 +106,14 @@ export function formStateToInput(
     rebuyAmount: form.rebuyAmount,
     addonAmount: form.addonAmount,
     bountyPerElimination: form.bountyPerElimination,
-    prizeSplit: [form.prizeFirst / 100, form.prizeSecond / 100],
+    prizeSplit: form.prizeSplit.map((p) => p / 100),
+    guaranteedFirstPlace: form.guaranteedFirstPlace,
     houseRuleFine: form.houseRuleFine,
     houseRules: form.houseRules.map((r) => r.trim()).filter(Boolean),
     chipValues: form.chipValues,
     startingStack: form.startingStack,
     addonStack: form.addonStack,
+    extraChips: form.extraChips.filter((c) => c.label.trim().length > 0),
     blindStructure: form.blindStructure,
     rebuyUntilLevel: form.rebuyUntilLevel,
     addonLevel: form.addonLevel,
@@ -99,13 +131,16 @@ export function tournamentToFormState(
     rebuyAmount: t.rebuyAmount,
     addonAmount: t.addonAmount,
     bountyPerElimination: t.bountyPerElimination,
-    prizeFirst: Math.round((t.prizeSplit[0] ?? 0) * 100),
-    prizeSecond: Math.round((t.prizeSplit[1] ?? 0) * 100),
+    // Torneos viejos todavía tienen prizeSplit como fracción (0.7/0.3); acá
+    // se muestra siempre como % entero para el formulario.
+    prizeSplit: t.prizeSplit.map((p) => Math.round(p * 100)),
+    guaranteedFirstPlace: t.guaranteedFirstPlace ?? 0,
     houseRuleFine: t.houseRuleFine,
     houseRules: t.houseRules ?? [],
     chipValues: t.chipValues,
     startingStack: t.startingStack,
     addonStack: t.addonStack,
+    extraChips: t.extraChips ?? [],
     blindStructure: t.blindStructure,
     // Torneos creados antes de esta función no tienen estos campos: se
     // asume que las recompras/addon seguían abiertas en cualquier nivel.

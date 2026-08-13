@@ -1,7 +1,7 @@
 // Valores del torneo Pantano Poker original (ver pantano-poker-resumen.md),
 // usados para precargar el formulario de "Crear torneo".
 
-import type { BlindLevel, ChipDenominations } from "@/types/tournament";
+import type { BlindLevel, ChipDenominations, ExtraChip } from "@/types/tournament";
 
 export const PANTANO_CHIP_VALUES: ChipDenominations = {
   white: 25,
@@ -89,13 +89,17 @@ export const PANTANO_DEFAULTS = {
   rebuyAmount: 5,
   addonAmount: 5,
   bountyPerElimination: 1,
-  prizeSplitFirst: 70,
-  prizeSplitSecond: 30,
+  // % del bote para cada puesto pagado (el largo del array = cuántos puestos pagan).
+  prizeSplit: [70, 30],
+  // 0 = sin garantía fija; si se pone algo, el 1er puesto se asegura ese
+  // monto y el resto se calcula con lo que sobra (o cae a % si no alcanza).
+  guaranteedFirstPlace: 0,
   houseRuleFine: 0.5,
   houseRules: PANTANO_HOUSE_RULES,
   chipValues: PANTANO_CHIP_VALUES,
   startingStack: PANTANO_STARTING_STACK,
   addonStack: PANTANO_ADDON_STACK,
+  extraChips: [] as ExtraChip[],
   blindStructure: PANTANO_BLIND_STRUCTURE,
   // Nivel 6 es el receso (10pm): última recompra/reingreso y ventana de addon.
   rebuyUntilLevel: 6,
@@ -112,10 +116,64 @@ export const CHIP_COLOR_LABEL: Record<keyof ChipDenominations, string> = {
   black: "Negra",
 };
 
+// Solo para dibujar el circulito de cada ficha en el formulario (decorativo).
+export const CHIP_COLOR_HEX: Record<keyof ChipDenominations, string> = {
+  white: "#f8f6f0",
+  green: "#1f8a4c",
+  red: "#c0392b",
+  blue: "#2f5fa8",
+  black: "#262626",
+};
+
 export const EMPTY_CHIPS: ChipDenominations = {
   white: 0,
   green: 0,
   red: 0,
   blue: 0,
   black: 0,
+};
+
+// Torneo "Bala": estructura corta pensada para probar la app o para partidas
+// rápidas de 1-2 horas. Reutiliza los mismos valores de ficha que Pantano
+// Poker (para no repetir la tabla) pero con niveles más cortos, stack más
+// chico y menos plata en juego.
+export const BALA_STARTING_STACK: ChipDenominations = {
+  white: 2,
+  green: 2,
+  red: 1,
+  blue: 0,
+  black: 0,
+};
+
+export const BALA_ADDON_STACK: ChipDenominations = {
+  white: 0,
+  green: 0,
+  red: 0,
+  blue: 1,
+  black: 0,
+};
+
+export const BALA_BLIND_STRUCTURE: BlindLevel[] = PANTANO_BLIND_STRUCTURE.map(
+  (level) => ({ ...level, durationMinutes: 5 })
+);
+
+export const BALA_DEFAULTS = {
+  name: "Torneo Bala",
+  buyIn: 2,
+  rebuyAmount: 2,
+  addonAmount: 2,
+  bountyPerElimination: 0.5,
+  prizeSplit: [70, 30],
+  guaranteedFirstPlace: 0,
+  houseRuleFine: 0.25,
+  houseRules: PANTANO_HOUSE_RULES,
+  chipValues: PANTANO_CHIP_VALUES,
+  startingStack: BALA_STARTING_STACK,
+  addonStack: BALA_ADDON_STACK,
+  extraChips: [] as ExtraChip[],
+  blindStructure: BALA_BLIND_STRUCTURE,
+  rebuyUntilLevel: 4,
+  addonLevel: 4,
+  seatsPerTable: 6,
+  dealerMode: "fixed" as const,
 };

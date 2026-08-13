@@ -41,6 +41,20 @@ export interface ChipDenominations {
   black: number;
 }
 
+/**
+ * Un color de ficha adicional a los 5 fijos (white/green/red/blue/black),
+ * definido libremente por el dueño del torneo: nombre, color (hex, para el
+ * circulito) y cuánto vale/entrega en el buy-in y el addon.
+ */
+export interface ExtraChip {
+  id: string;
+  label: string;
+  hex: string;
+  value: number;
+  startingStack: number;
+  addonStack: number;
+}
+
 export interface TournamentSettings {
   id: string;
   name: string;
@@ -50,8 +64,14 @@ export interface TournamentSettings {
   addonAmount: number;
   /** Parte de cada buy-in/recompra/addon que se destina al bounty del jugador */
   bountyPerElimination: number;
-  /** Porcentaje del bote por puesto, ej. [0.7, 0.3] para 1º y 2º */
+  /** Porcentaje del bote por puesto (cuántos puestos pagan = el largo de este array) */
   prizeSplit: number[];
+  /**
+   * Monto fijo garantizado para el 1er puesto, sin importar el %. Si el
+   * bote no alcanza a cubrirlo, se cae al reparto por porcentaje nomás.
+   * 0 = sin garantía, reparto puramente por porcentaje.
+   */
+  guaranteedFirstPlace: number;
   /** Monto de la multa de las reglas de la casa (fondo de trofeo/gastos) */
   houseRuleFine: number;
   /** Lista de motivos de multa definidos al crear el torneo, para elegir en un combobox */
@@ -61,6 +81,8 @@ export interface TournamentSettings {
   startingStack: ChipDenominations;
   /** fichas que se entregan en el addon; 0 en los colores que no aplican */
   addonStack: ChipDenominations;
+  /** colores de ficha adicionales a los 5 de siempre, definidos por el dueño */
+  extraChips: ExtraChip[];
 
   blindStructure: BlindLevel[];
   /** Último nivel (inclusive) en el que todavía se aceptan recompras/reingresos */

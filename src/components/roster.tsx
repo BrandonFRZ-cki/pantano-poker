@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   chipsValue,
   eliminatePlayer,
+  extraChipsValue,
   registerAddon,
   registerBuyIn,
   registerFine,
@@ -35,7 +36,9 @@ export function RegistrationCard({
   const [editingStackUid, setEditingStackUid] = useState<string | null>(null);
   const [stackValue, setStackValue] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const chipsPerRebuy = chipsValue(tournament.chipValues, tournament.startingStack);
+  const chipsPerRebuy =
+    chipsValue(tournament.chipValues, tournament.startingStack) +
+    extraChipsValue(tournament.extraChips ?? [], "startingStack");
   // Torneos creados antes de esta función todavía no tienen houseRules en
   // Firestore; se trata como lista vacía hasta que el dueño edite el torneo.
   const houseRules = tournament.houseRules ?? [];
