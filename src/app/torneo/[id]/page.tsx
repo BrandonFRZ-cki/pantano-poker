@@ -11,7 +11,9 @@ import {
   subscribeToTables,
   subscribeToTournament,
   subscribeToTransactions,
+  updatePlayerDisplayName,
 } from "@/lib/tournaments";
+import { EliminatedBanner, EliminatedOverlay } from "@/components/eliminated-summary";
 import type {
   Player,
   PokerTable,
@@ -112,9 +114,9 @@ export default function TorneoDetallePage({
   useEffect(() => subscribeToTables(id, setTables), [id]);
   useEffect(() => subscribeToTransactions(id, setTransactions), [id]);
 
-  // Aviso cuando te cambiaron de mesa (balanceo, movimiento manual, etc.):
-  // se compara la mesa anterior con la actual cada vez que cambia el
-  // jugador en vivo.
+  // Aviso cuando te asignan o te cambian de mesa (armado inicial, balanceo,
+  // movimiento manual, recompra, etc.): se compara la mesa anterior con la
+  // actual cada vez que cambia el jugador en vivo.
   const prevTableIdRef = useRef<string | null | undefined>(undefined);
   const [tableChangeNotice, setTableChangeNotice] = useState<string | null>(
     null
@@ -129,12 +131,38 @@ export default function TorneoDetallePage({
       player.status === "active"
     ) {
       const table = tables.find((t) => t.id === player.tableId);
+      const verb = prev === null ? "Fuiste asignado a" : "Te cambiaste a";
       setTableChangeNotice(
-        `Te cambiaste a ${table?.name ?? "otra mesa"}${player.seat ? `, asiento ${player.seat}` : ""}.`
+        `${verb} ${table?.name ?? "una mesa"}${player.seat ? `, asiento ${player.seat}` : ""}.`
       );
     }
     prevTableIdRef.current = player.tableId;
   }, [player, tables]);
+
+  // El nombre del jugador se copia una vez al unirse; si después cambia su
+  // nombre de perfil, se sincroniza acá para que no quede desactualizado en
+  // este torneo (no aplica a jugadores temporales, que no tienen perfil).
+  useEffect(() => {
+    if (!player || player.isLocal || !profile) return;
+    if (player.displayName !== profile.displayName) {
+      updatePlayerDisplayName(id, profile.uid, profile.displayName).catch(
+        (err) => console.error(err)
+      );
+    }
+  }, [id, player, profile]);
+
+  // Pantalla completa de "fuiste eliminado": se muestra sola apenas pasa de
+  // activo a eliminado, y se puede reabrir después con el banner chico.
+  const prevStatusRef = useRef<string | undefined>(undefined);
+  const [showEliminatedOverlay, setShowEliminatedOverlay] = useState(false);
+  useEffect(() => {
+    if (!player) return;
+    const prev = prevStatusRef.current;
+    if (prev === "active" && player.status === "eliminated") {
+      setShowEliminatedOverlay(true);
+    }
+    prevStatusRef.current = player.status;
+  }, [player]);
 
   if (loading || !firebaseUser || !profile || fetching) {
     return (
@@ -185,6 +213,15 @@ export default function TorneoDetallePage({
 
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
+      {showEliminatedOverlay && (
+        <EliminatedOverlay
+          tournament={tournament}
+          player={player}
+          players={players}
+          transactions={transactions}
+          onClose={() => setShowEliminatedOverlay(false)}
+        />
+      )}
       <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
         <div className="flex items-center justify-between w-full">
           <Link
@@ -200,6 +237,13 @@ export default function TorneoDetallePage({
             </LinkButton>
           )}
         </div>
+
+        {player.status === "eliminated" && !showEliminatedOverlay && (
+          <EliminatedBanner
+            player={player}
+            onOpen={() => setShowEliminatedOverlay(true)}
+          />
+        )}
 
         {tableChangeNotice && (
           <div className="flex items-center justify-between gap-3 rounded-xl bg-pp-green-light/30 border border-pp-green-mid/30 px-4 py-2.5">
