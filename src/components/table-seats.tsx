@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { computeBlindSeats, seatPositions } from "@/lib/table-order";
 import type { Player, PokerTable } from "@/types/tournament";
 import { formatChips } from "@/lib/format";
@@ -7,6 +8,19 @@ import { Avatar } from "@/components/ui";
 
 function nameFor(players: Player[], uid: string): Player | undefined {
   return players.find((p) => p.uid === uid);
+}
+
+/**
+ * Mismas posiciones en óvalo que seatPositions, pero corridas medio asiento
+ * para que ningún jugador quede justo arriba del todo: esa zona (la curva)
+ * es la banca del dealer, no un asiento.
+ */
+function seatPositionsWithDealerGap(
+  count: number
+): { x: number; y: number }[] {
+  if (count === 0) return [];
+  const base = seatPositions(count + 1);
+  return base.slice(1);
 }
 
 /** Dibuja la mesa en óvalo con cada jugador en su asiento, botón/SB/BB y turno actual. */
@@ -23,14 +37,20 @@ export function SeatDiagram({
   dealerName?: string | null;
 }) {
   const blinds = computeBlindSeats(table);
-  const positions = seatPositions(table.playerIds.length);
+  const positions = seatPositionsWithDealerGap(table.playerIds.length);
 
   return (
-    <div className="relative w-full aspect-[5/3] max-w-xl mx-auto mt-4">
-      <div className="absolute inset-[8%] rounded-[999px] bg-pp-green-dark/90 border-4 border-pp-brown/20 shadow-inner" />
+    <div className="relative w-full aspect-[1503/825] max-w-xl mx-auto mt-6">
+      <Image
+        src="/icons/mesa.svg"
+        alt="Mesa de Pantano Poker"
+        fill
+        unoptimized
+        className="pointer-events-none select-none"
+      />
 
-      {/* Banca del dealer: parte de la mesa, no un asiento más. */}
-      <div className="absolute left-1/2 -top-4 -translate-x-1/2 flex flex-col items-center z-10">
+      {/* Banca del dealer: la curva de arriba del dibujo, no un asiento más. */}
+      <div className="absolute left-1/2 top-[3%] -translate-x-1/2 flex flex-col items-center z-10">
         <span className="rounded-full bg-pp-brown text-pp-cream text-[10px] font-medium px-3 py-1 shadow whitespace-nowrap">
           🂠 Dealer{dealerName ? ` · ${dealerName}` : ""}
         </span>
