@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { computeBlindSeats, seatPositions } from "@/lib/table-order";
+import { computeBlindSeats } from "@/lib/table-order";
 import type { Player, PokerTable } from "@/types/tournament";
 import { formatChips } from "@/lib/format";
 import { Avatar } from "@/components/ui";
@@ -11,16 +11,26 @@ function nameFor(players: Player[], uid: string): Player | undefined {
 }
 
 /**
- * Mismas posiciones en óvalo que seatPositions, pero corridas medio asiento
- * para que ningún jugador quede justo arriba del todo: esa zona (la curva)
- * es la banca del dealer, no un asiento.
+ * Posiciones (x%, y%) alrededor del dibujo de la mesa, afuera del fieltro
+ * (que ocupa el 9%-91% del contenedor), corridas medio asiento para que
+ * nadie quede justo arriba del todo: esa zona (la curva) es la banca del
+ * dealer, no un asiento.
  */
 function seatPositionsWithDealerGap(
   count: number
 ): { x: number; y: number }[] {
   if (count === 0) return [];
-  const base = seatPositions(count + 1);
-  return base.slice(1);
+  const positions: { x: number; y: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    // Arranca arriba (-90°) y se corre medio asiento para dejar el hueco
+    // del dealer libre en el centro de arriba.
+    const angle = -90 + 360 / count / 2 + (360 / count) * i;
+    const rad = (angle * Math.PI) / 180;
+    const x = 50 + 49 * Math.cos(rad);
+    const y = 50 + 48 * Math.sin(rad);
+    positions.push({ x, y });
+  }
+  return positions;
 }
 
 /** Dibuja la mesa en óvalo con cada jugador en su asiento, botón/SB/BB y turno actual. */
@@ -41,16 +51,20 @@ export function SeatDiagram({
 
   return (
     <div className="relative w-full aspect-[1503/825] max-w-xl mx-auto mt-6">
-      <Image
-        src="/icons/mesa.svg"
-        alt="Mesa de Pantano Poker"
-        fill
-        unoptimized
-        className="pointer-events-none select-none"
-      />
+      {/* El fieltro va adentro, con margen alrededor para que los asientos
+          floten afuera de él (como en el diseño), no encima. */}
+      <div className="absolute inset-[9%_9%_10%_9%]">
+        <Image
+          src="/icons/mesa.svg"
+          alt="Mesa de Pantano Poker"
+          fill
+          unoptimized
+          className="pointer-events-none select-none"
+        />
+      </div>
 
-      {/* Banca del dealer: la curva de arriba del dibujo, no un asiento más. */}
-      <div className="absolute left-1/2 top-[3%] -translate-x-1/2 flex flex-col items-center z-10">
+      {/* Banca del dealer: adentro de la curva de arriba del dibujo. */}
+      <div className="absolute left-1/2 top-[19%] -translate-x-1/2 flex flex-col items-center z-10">
         <span className="rounded-full bg-pp-brown text-pp-cream text-[10px] font-medium px-3 py-1 shadow whitespace-nowrap">
           🂠 Dealer{dealerName ? ` · ${dealerName}` : ""}
         </span>
@@ -69,7 +83,7 @@ export function SeatDiagram({
         return (
           <div
             key={uid}
-            className="absolute flex flex-col items-center gap-0.5 -translate-x-1/2 -translate-y-1/2"
+            className="absolute flex flex-col items-center gap-0.5 -translate-x-1/2 -translate-y-1/2 z-10"
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
           >
             <div
