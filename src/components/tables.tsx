@@ -4,9 +4,26 @@ import { useState } from "react";
 import { assignTables, balanceTables, movePlayerToTable } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { Avatar, Button, Card } from "@/components/ui";
+import { SeatDiagram } from "@/components/table-seats";
 
 function nameFor(players: Player[], uid: string): string {
   return players.find((p) => p.uid === uid)?.displayName ?? "…";
+}
+
+/**
+ * Quién está a cargo de repartir: con dealer fijo, es la misma persona en
+ * todas las mesas (la primera de dealerUids con cuenta). Con dealer
+ * rotativo no hay uno solo asignado, así que se avisa que va rotando.
+ */
+function dealerInChargeLabel(
+  tournament: TournamentSettings,
+  players: Player[]
+): string | null {
+  if (tournament.dealerMode !== "fixed") return null;
+  return (
+    players.find((p) => tournament.dealerUids.includes(p.uid))?.displayName ??
+    null
+  );
 }
 
 export function TablesCard({
@@ -35,6 +52,7 @@ export function TablesCard({
   const imbalance =
     counts.length > 1 ? Math.max(...counts) - Math.min(...counts) : 0;
   const shortTable = tables.find((t) => t.playerIds.length === Math.min(...counts));
+  const dealerInCharge = dealerInChargeLabel(tournament, players);
 
   const handleAssign = async () => {
     setAssigning(true);
@@ -159,8 +177,26 @@ export function TablesCard({
           <div key={table.id}>
             <p className="text-xs font-medium text-pp-brown/50 mb-2">
               {table.name}
+              {tournament.dealerMode === "fixed" && (
+                <span className="text-pp-brown/40">
+                  {" "}
+                  · dealer: {dealerInCharge ?? "sin asignar"}
+                </span>
+              )}
+              {tournament.dealerMode === "rotating" && (
+                <span className="text-pp-brown/40"> · dealer rotativo</span>
+              )}
             </p>
-            <div className="flex flex-col gap-2">
+            {table.playerIds.length > 0 && (
+              <SeatDiagram
+                table={table}
+                players={players}
+                currentUid={currentUid}
+                dealerName={dealerInCharge}
+                compact
+              />
+            )}
+            <div className="flex flex-col gap-2 mt-3">
               {table.playerIds.map((uid, index) => (
                 <div
                   key={uid}
