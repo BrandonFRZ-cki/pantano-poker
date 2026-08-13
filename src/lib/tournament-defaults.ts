@@ -73,6 +73,14 @@ export const PANTANO_BLIND_STRUCTURE: BlindLevel[] = [
   },
 ];
 
+// Reglas de la casa confirmadas en pantano-poker-resumen.md (todas cobran la
+// misma multa, houseRuleFine). Quedan editables al crear/editar el torneo.
+export const PANTANO_HOUSE_RULES: string[] = [
+  "Jugar fuera de turno (se perdona la primera vez)",
+  "Hablar de la mano o mostrar las cartas antes del showdown",
+  "Prestar fichas entre jugadores",
+];
+
 // El % de reparto y el monto exacto del bounty seguían "pendientes de
 // confirmar" en el resumen del torneo — quedan como valores editables.
 export const PANTANO_DEFAULTS = {
@@ -84,6 +92,7 @@ export const PANTANO_DEFAULTS = {
   prizeSplitFirst: 70,
   prizeSplitSecond: 30,
   houseRuleFine: 0.5,
+  houseRules: PANTANO_HOUSE_RULES,
   chipValues: PANTANO_CHIP_VALUES,
   startingStack: PANTANO_STARTING_STACK,
   addonStack: PANTANO_ADDON_STACK,

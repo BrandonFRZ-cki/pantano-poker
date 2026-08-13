@@ -14,6 +14,7 @@ export interface TournamentFormState {
   prizeFirst: number;
   prizeSecond: number;
   houseRuleFine: number;
+  houseRules: string[];
   chipValues: ChipDenominations;
   startingStack: ChipDenominations;
   addonStack: ChipDenominations;
@@ -32,6 +33,7 @@ export const BLANK_TOURNAMENT_STATE: TournamentFormState = {
   prizeFirst: 70,
   prizeSecond: 30,
   houseRuleFine: 0,
+  houseRules: [],
   chipValues: { ...EMPTY_CHIPS },
   startingStack: { ...EMPTY_CHIPS },
   addonStack: { ...EMPTY_CHIPS },
@@ -52,6 +54,7 @@ export const PANTANO_TOURNAMENT_STATE: TournamentFormState = {
   prizeFirst: PANTANO_DEFAULTS.prizeSplitFirst,
   prizeSecond: PANTANO_DEFAULTS.prizeSplitSecond,
   houseRuleFine: PANTANO_DEFAULTS.houseRuleFine,
+  houseRules: [...PANTANO_DEFAULTS.houseRules],
   chipValues: PANTANO_DEFAULTS.chipValues,
   startingStack: PANTANO_DEFAULTS.startingStack,
   addonStack: PANTANO_DEFAULTS.addonStack,
@@ -72,6 +75,7 @@ export function formStateToInput(
     bountyPerElimination: form.bountyPerElimination,
     prizeSplit: [form.prizeFirst / 100, form.prizeSecond / 100],
     houseRuleFine: form.houseRuleFine,
+    houseRules: form.houseRules.map((r) => r.trim()).filter(Boolean),
     chipValues: form.chipValues,
     startingStack: form.startingStack,
     addonStack: form.addonStack,
@@ -94,6 +98,7 @@ export function tournamentToFormState(
     prizeFirst: Math.round((t.prizeSplit[0] ?? 0) * 100),
     prizeSecond: Math.round((t.prizeSplit[1] ?? 0) * 100),
     houseRuleFine: t.houseRuleFine,
+    houseRules: t.houseRules ?? [],
     chipValues: t.chipValues,
     startingStack: t.startingStack,
     addonStack: t.addonStack,

@@ -54,6 +54,8 @@ export interface TournamentSettings {
   prizeSplit: number[];
   /** Monto de la multa de las reglas de la casa (fondo de trofeo/gastos) */
   houseRuleFine: number;
+  /** Lista de motivos de multa definidos al crear el torneo, para elegir en un combobox */
+  houseRules: string[];
 
   chipValues: ChipDenominations;
   startingStack: ChipDenominations;
@@ -132,6 +134,8 @@ export interface Player {
   /** playerId de quien lo eliminó, para asignar el bounty */
   eliminatedBy?: string;
   eliminationOrder?: number;
+  /** cuántas fichas tenía justo antes de ser eliminado, por si el dealer deshace la eliminación */
+  chipsAtElimination?: number;
   /** ids de jugadores por los que cobró bounty */
   bountiesWon: string[];
   registeredAt: number;

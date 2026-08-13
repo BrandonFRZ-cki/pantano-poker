@@ -29,8 +29,13 @@ export function RegistrationCard({
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [eliminatingUid, setEliminatingUid] = useState<string | null>(null);
   const [eliminatorChoice, setEliminatorChoice] = useState("");
+  const [finingUid, setFiningUid] = useState<string | null>(null);
+  const [fineReason, setFineReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const chipsPerRebuy = chipsValue(tournament.chipValues, tournament.startingStack);
+  // Torneos creados antes de esta función todavía no tienen houseRules en
+  // Firestore; se trata como lista vacía hasta que el dueño edite el torneo.
+  const houseRules = tournament.houseRules ?? [];
 
   const run = async (uid: string, action: () => Promise<void>) => {
     setBusyUid(uid);
@@ -45,14 +50,14 @@ export function RegistrationCard({
     }
   };
 
-  const confirmElimination = async (targetUid: string) => {
-    setBusyUid(targetUid);
+  const confirmElimination = async (target: Player) => {
+    setBusyUid(target.uid);
     setError(null);
     try {
       await eliminatePlayer(
         tournament,
         tables,
-        targetUid,
+        target,
         eliminatorChoice || null
       );
     } catch (err) {
@@ -62,6 +67,21 @@ export function RegistrationCard({
       setBusyUid(null);
       setEliminatingUid(null);
       setEliminatorChoice("");
+    }
+  };
+
+  const confirmFine = async (targetUid: string) => {
+    setBusyUid(targetUid);
+    setError(null);
+    try {
+      await registerFine(tournament, targetUid, actingUid, fineReason);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "No se pudo poner la multa.");
+    } finally {
+      setBusyUid(null);
+      setFiningUid(null);
+      setFineReason("");
     }
   };
 
@@ -175,17 +195,10 @@ export function RegistrationCard({
                         variant="ghost"
                         size="sm"
                         disabled={busy}
-                        onClick={() =>
-                          run(p.uid, () =>
-                            registerFine(
-                              tournament,
-                              p.uid,
-                              actingUid,
-                              window.prompt("Motivo de la multa (opcional)") ??
-                                undefined
-                            )
-                          )
-                        }
+                        onClick={() => {
+                          setFiningUid(p.uid);
+                          setFineReason(houseRules[0] ?? "");
+                        }}
                       >
                         Multa
                       </Button>
@@ -227,7 +240,7 @@ export function RegistrationCard({
                   <Button
                     size="sm"
                     disabled={busy}
-                    onClick={() => confirmElimination(p.uid)}
+                    onClick={() => confirmElimination(p)}
                   >
                     Confirmar
                   </Button>
@@ -237,6 +250,47 @@ export function RegistrationCard({
                     onClick={() => {
                       setEliminatingUid(null);
                       setEliminatorChoice("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
+
+              {finingUid === p.uid && (
+                <div className="flex items-center gap-2 bg-pp-brown/5 rounded-xl px-3 py-2">
+                  <span className="text-xs text-pp-brown/70">Motivo</span>
+                  {houseRules.length > 0 ? (
+                    <select
+                      className="flex-1 text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown"
+                      value={fineReason}
+                      onChange={(e) => setFineReason(e.target.value)}
+                    >
+                      {houseRules.map((rule) => (
+                        <option key={rule} value={rule}>
+                          {rule}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="flex-1 text-xs text-pp-brown/50">
+                      No hay motivos configurados. Agrégalos en &quot;Editar
+                      torneo&quot;.
+                    </span>
+                  )}
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => confirmFine(p.uid)}
+                  >
+                    Confirmar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFiningUid(null);
+                      setFineReason("");
                     }}
                   >
                     Cancelar

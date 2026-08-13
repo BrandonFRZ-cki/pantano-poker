@@ -74,6 +74,24 @@ export function TournamentFormFields({
     }));
   };
 
+  const updateHouseRule = (index: number, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      houseRules: prev.houseRules.map((r, i) => (i === index ? value : r)),
+    }));
+  };
+
+  const addHouseRule = () => {
+    setForm((prev) => ({ ...prev, houseRules: [...prev.houseRules, ""] }));
+  };
+
+  const removeHouseRule = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      houseRules: prev.houseRules.filter((_, i) => i !== index),
+    }));
+  };
+
   return (
     <>
       <section className="flex flex-col gap-3">
@@ -372,6 +390,48 @@ export function TournamentFormFields({
               onClick={() => removeBlindLevel(index)}
               className="text-pp-brown/40 hover:text-red-700"
               aria-label={`Eliminar nivel ${lvl.level}`}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-pp-green-dark">
+            Reglas de la casa (motivos de multa)
+          </h2>
+          <button
+            type="button"
+            onClick={addHouseRule}
+            className="text-sm text-pp-green-dark underline"
+          >
+            + Agregar motivo
+          </button>
+        </div>
+        <p className="text-xs text-pp-brown/50">
+          Estos motivos van a aparecer en un combobox cuando el dealer ponga
+          una multa. Todos cobran el mismo monto de arriba.
+        </p>
+        {form.houseRules.length === 0 && (
+          <p className="text-sm text-pp-brown/60">
+            Todavía no agregaste ningún motivo.
+          </p>
+        )}
+        {form.houseRules.map((rule, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <input
+              className={inputClass}
+              value={rule}
+              placeholder="Ej. Jugar fuera de turno"
+              onChange={(e) => updateHouseRule(index, e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => removeHouseRule(index)}
+              className="text-pp-brown/40 hover:text-red-700"
+              aria-label={`Eliminar motivo ${index + 1}`}
             >
               ✕
             </button>

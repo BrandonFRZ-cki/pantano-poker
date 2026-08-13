@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getUserTournaments } from "@/lib/tournaments";
+import { deleteTournament, getUserTournaments } from "@/lib/tournaments";
 import type { TournamentSettings } from "@/types/tournament";
-import { Badge, Card, LinkButton } from "@/components/ui";
+import { Badge, Button, Card, LinkButton } from "@/components/ui";
 import { LoadingScreen } from "@/components/loading";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -24,6 +24,8 @@ export default function PanelPage() {
   const [tournaments, setTournaments] = useState<TournamentSettings[] | null>(
     null
   );
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !firebaseUser) {
@@ -35,6 +37,27 @@ export default function PanelPage() {
     if (!profile) return;
     getUserTournaments(profile.tournamentIds ?? []).then(setTournaments);
   }, [profile]);
+
+  const handleDelete = async (t: TournamentSettings) => {
+    const sure = window.confirm(
+      `¿Seguro que quieres borrar "${t.name}"? Esto elimina jugadores, mesas y transacciones, y no se puede deshacer.`
+    );
+    if (!sure) return;
+
+    setDeletingId(t.id);
+    setError(null);
+    try {
+      await deleteTournament(t.id);
+      setTournaments((prev) => prev?.filter((x) => x.id !== t.id) ?? prev);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err instanceof Error ? err.message : "No se pudo borrar el torneo."
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading || !firebaseUser || !profile) {
     return (
@@ -84,8 +107,11 @@ export default function PanelPage() {
             </Card>
           )}
           {tournaments?.map((t) => (
-            <Link key={t.id} href={`/torneo/${t.id}`} className="block">
-              <Card className="flex items-center justify-between gap-3 hover:bg-white transition-colors">
+            <Card key={t.id} className="flex flex-col gap-3">
+              <Link
+                href={`/torneo/${t.id}`}
+                className="flex items-center justify-between gap-3 hover:opacity-80 transition-opacity"
+              >
                 <div>
                   <p className="font-display text-pp-green-dark">{t.name}</p>
                   <p className="text-sm text-pp-brown/60">
@@ -95,10 +121,21 @@ export default function PanelPage() {
                 <Badge tone={t.ownerUid === profile.uid ? "owner" : "neutral"}>
                   {t.ownerUid === profile.uid ? "Dueño" : "Miembro"}
                 </Badge>
-              </Card>
-            </Link>
+              </Link>
+              {t.status === "finished" && t.ownerUid === profile.uid && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  disabled={deletingId === t.id}
+                  onClick={() => handleDelete(t)}
+                >
+                  {deletingId === t.id ? "Borrando…" : "Eliminar torneo"}
+                </Button>
+              )}
+            </Card>
           ))}
         </div>
+        {error && <p className="text-sm text-red-700 text-center">{error}</p>}
       </div>
     </div>
   );

@@ -46,6 +46,7 @@ export interface CreateTournamentInput {
   bountyPerElimination: number;
   prizeSplit: number[];
   houseRuleFine: number;
+  houseRules: string[];
   chipValues: ChipDenominations;
   startingStack: ChipDenominations;
   addonStack: ChipDenominations;
@@ -271,6 +272,22 @@ export function subscribeToPlayer(
 }
 
 /** Trae los torneos de un usuario a partir de su lista de ids guardada en el perfil. */
+/**
+ * Borra un torneo por completo: sus jugadores, mesas, transacciones y el
+ * documento del torneo. No hay vuelta atrás, así que solo se ofrece desde el
+ * panel para torneos ya finalizados.
+ */
+export async function deleteTournament(tournamentId: string): Promise<void> {
+  const subcollections = ["players", "tables", "transactions"] as const;
+  for (const sub of subcollections) {
+    const snap = await getDocs(
+      collection(db, "tournaments", tournamentId, sub)
+    );
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+  }
+  await deleteDoc(doc(db, "tournaments", tournamentId));
+}
+
 export async function getUserTournaments(
   tournamentIds: string[]
 ): Promise<TournamentSettings[]> {
@@ -402,10 +419,13 @@ export async function registerRebuy(
     { chipsAwarded }
   );
 
+  // Se resetea el stack (no se suma al que tenía): un jugador eliminado se
+  // queda en 0 fichas, así que la recompra le entrega un stack nuevo, igual
+  // que el buy-in inicial.
   await updateDoc(
     doc(db, "tournaments", tournament.id, "players", targetUid),
     {
-      chips: increment(chipsAwarded),
+      chips: chipsAwarded,
       rebuyCount: increment(1),
       status: "active",
     }
@@ -559,15 +579,19 @@ export async function movePlayerToTable(
 export async function eliminatePlayer(
   tournament: TournamentSettings,
   tables: PokerTable[],
-  eliminatedUid: string,
+  eliminatedPlayer: Player,
   eliminatedByUid: string | null
 ): Promise<void> {
   const order = tournament.eliminationsCount + 1;
+  const eliminatedUid = eliminatedPlayer.uid;
 
   await updateDoc(doc(db, "tournaments", tournament.id), {
     eliminationsCount: increment(1),
   });
 
+  // Se guarda el stack que tenía justo antes de salir (chipsAtElimination) y
+  // se le pone el contador en 0: ya no tiene fichas en juego. Si el dealer
+  // deshace la eliminación, se restaura ese valor.
   await updateDoc(
     doc(db, "tournaments", tournament.id, "players", eliminatedUid),
     {
@@ -577,6 +601,8 @@ export async function eliminatePlayer(
       eliminationOrder: order,
       tableId: null,
       seat: null,
+      chips: 0,
+      chipsAtElimination: eliminatedPlayer.chips,
     }
   );
 
@@ -615,6 +641,8 @@ export async function undoLastElimination(
     doc(db, "tournaments", tournament.id, "players", eliminatedPlayer.uid),
     {
       status: "active",
+      chips: eliminatedPlayer.chipsAtElimination ?? eliminatedPlayer.chips,
+      chipsAtElimination: deleteField(),
       eliminatedAt: deleteField(),
       eliminatedBy: deleteField(),
       eliminationOrder: deleteField(),
