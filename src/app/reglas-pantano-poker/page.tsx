@@ -12,6 +12,30 @@ import {
 } from "@/components/ui";
 import { SeatDiagram } from "@/components/table-seats";
 import type { Player, PokerTable } from "@/types/tournament";
+import { formatMoney } from "@/lib/format";
+import {
+  CHIP_COLOR_HEX,
+  CHIP_COLOR_LABEL,
+  PANTANO_ADDON_STACK,
+  PANTANO_BLIND_STRUCTURE,
+  PANTANO_CHIP_VALUES,
+  PANTANO_DEFAULTS,
+  PANTANO_HOUSE_RULES,
+  PANTANO_STARTING_STACK,
+} from "@/lib/tournament-defaults";
+import { chipsValue } from "@/lib/tournaments";
+
+function ChipDot({ hex }: { hex: string }) {
+  return (
+    <span
+      className="inline-block w-3.5 h-3.5 rounded-full border border-black/10 shrink-0"
+      style={{ backgroundColor: hex }}
+    />
+  );
+}
+
+const CHIP_COLORS = Object.keys(CHIP_COLOR_LABEL) as (keyof typeof CHIP_COLOR_LABEL)[];
+const STARTING_STACK_VALUE = chipsValue(PANTANO_CHIP_VALUES, PANTANO_STARTING_STACK);
 
 // Mesa de ejemplo (no es real, solo ilustra la distribución): 6 jugadores,
 // uno con el botón, uno con el turno de hablar y otro ya retirado (fold) de
@@ -76,6 +100,46 @@ const SECTIONS: RuleSection[] = [
     ),
   },
   {
+    icon: <IconChip />,
+    title: "Cuánto cuesta jugar (valores por defecto)",
+    content: (
+      <div className="flex flex-col gap-3">
+        <p>
+          Estos son los montos por defecto de Pantano Poker. El dueño de
+          cada torneo los puede cambiar al crearlo, pero así arranca la
+          modalidad de base:
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {[
+            ["Buy-in (inscripción)", PANTANO_DEFAULTS.buyIn],
+            ["Recompra", PANTANO_DEFAULTS.rebuyAmount],
+            ["Addon", PANTANO_DEFAULTS.addonAmount],
+            ["Bounty por eliminación", PANTANO_DEFAULTS.bountyPerElimination],
+            ["Multa (regla de la casa)", PANTANO_DEFAULTS.houseRuleFine],
+          ].map(([label, amount]) => (
+            <div
+              key={label as string}
+              className="rounded-xl bg-pp-brown/5 px-3 py-2.5 text-center"
+            >
+              <p className="text-[11px] text-pp-brown/50">{label}</p>
+              <p className="font-display text-pp-green-dark">
+                {formatMoney(amount as number)}
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="text-pp-brown/60">
+          El bounty ya viene incluido en cada buy-in/recompra (no es un
+          cobro aparte), y la última recompra y la ventana de addon caen
+          juntas en el nivel {PANTANO_DEFAULTS.rebuyUntilLevel} (el receso).
+          Las mesas son de hasta {PANTANO_DEFAULTS.seatsPerTable} jugadores,
+          y los dealers rotan entre mesas cada{" "}
+          {PANTANO_DEFAULTS.dealerRotationLevels} niveles.
+        </p>
+      </div>
+    ),
+  },
+  {
     icon: <IconClock />,
     title: "Ciegas, ante y niveles",
     content: (
@@ -100,6 +164,34 @@ const SECTIONS: RuleSection[] = [
           grande y el ante. Eso lo ves arriba de Mi mesa, junto con el
           reloj que marca cuánto falta para que suba el siguiente nivel.
         </p>
+        <div>
+          <p className="font-medium text-pp-brown mb-1.5">
+            Estructura por defecto (15 min. por nivel)
+          </p>
+          <div className="grid grid-cols-4 gap-1.5 text-xs text-pp-brown/50 px-1">
+            <span>Nivel</span>
+            <span>Ciegas</span>
+            <span>Ante</span>
+            <span></span>
+          </div>
+          <div className="flex flex-col divide-y divide-pp-brown/10">
+            {PANTANO_BLIND_STRUCTURE.map((lvl) => (
+              <div
+                key={lvl.level}
+                className="grid grid-cols-4 gap-1.5 items-center py-1 text-sm"
+              >
+                <span>{lvl.level}</span>
+                <span>
+                  {lvl.smallBlind}/{lvl.bigBlind}
+                </span>
+                <span>{lvl.ante}</span>
+                <span className="text-[10px] text-pp-brown/40">
+                  {lvl.isBreak ? "receso · última recompra/addon" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     ),
   },
@@ -145,6 +237,36 @@ const SECTIONS: RuleSection[] = [
           realmente importa al final es tu puesto, no las fichas que
           llegaste a acumular en el camino.
         </p>
+        <div>
+          <p className="font-medium text-pp-brown mb-1.5">
+            Valores por defecto de Pantano Poker
+          </p>
+          <div className="grid grid-cols-[1.1rem_1fr_1fr_1fr_1fr] gap-2 text-xs text-pp-brown/50 px-1">
+            <span></span>
+            <span>Color</span>
+            <span>Valor</span>
+            <span>Stack</span>
+            <span>Addon</span>
+          </div>
+          <div className="flex flex-col divide-y divide-pp-brown/10">
+            {CHIP_COLORS.map((color) => (
+              <div
+                key={color}
+                className="grid grid-cols-[1.1rem_1fr_1fr_1fr_1fr] gap-2 items-center py-1"
+              >
+                <ChipDot hex={CHIP_COLOR_HEX[color]} />
+                <span className="text-sm">{CHIP_COLOR_LABEL[color]}</span>
+                <span className="text-sm">{PANTANO_CHIP_VALUES[color]}</span>
+                <span className="text-sm">{PANTANO_STARTING_STACK[color]}</span>
+                <span className="text-sm">{PANTANO_ADDON_STACK[color]}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-pp-brown/50 mt-1.5">
+            El stack inicial suma {formatMoney(STARTING_STACK_VALUE)} en
+            fichas por los {formatMoney(PANTANO_DEFAULTS.buyIn)} del buy-in.
+          </p>
+        </div>
       </div>
     ),
   },
@@ -264,17 +386,25 @@ const SECTIONS: RuleSection[] = [
       <div className="flex flex-col gap-2">
         <p>
           Cada torneo tiene su propia lista de reglas de la casa (la ves en
-          la pestaña Reglas de ese torneo), con una multa fija en dólares
-          por incumplirlas. Las típicas en Pantano Poker son:
+          la pestaña Reglas de ese torneo). En Pantano Poker, por defecto,
+          las 4 reglas cobran lo mismo:{" "}
+          <span className="font-medium">
+            {formatMoney(PANTANO_DEFAULTS.houseRuleFine)} cada una
+          </span>
+          .
         </p>
-        <ul className="list-disc list-inside flex flex-col gap-1">
-          <li>Jugar fuera de turno.</li>
-          <li>Prestar fichas entre jugadores.</li>
-          <li>
-            Hablar de tu mano —o mostrar las cartas— después de haberte
-            retirado (fold).
-          </li>
-          <li>Tocar las fichas de otro jugador.</li>
+        <ul className="flex flex-col gap-1.5">
+          {PANTANO_HOUSE_RULES.map((rule) => (
+            <li
+              key={rule}
+              className="flex items-center justify-between gap-3 rounded-lg bg-pp-brown/5 px-3 py-1.5"
+            >
+              <span>{rule}</span>
+              <span className="text-pp-green-dark font-medium shrink-0">
+                {formatMoney(PANTANO_DEFAULTS.houseRuleFine)}
+              </span>
+            </li>
+          ))}
         </ul>
       </div>
     ),
