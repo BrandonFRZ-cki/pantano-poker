@@ -213,6 +213,17 @@ function MesaContent({
     tournament.currentLevel === tournament.addonLevel;
   const handInProgressAtTable = !!table?.currentActorUid;
 
+  // Jugadores que pidieron recompra y estaban sentados en esta mesa justo al
+  // ser eliminados: el dealer de esta mesa los puede aprobar directo desde
+  // acá, sin tener que ir a buscarlos a otra pantalla. Ojo: al aprobar, la
+  // recompra igual lo puede sentar en cualquier mesa con asiento libre (no
+  // necesariamente esta), es solo la aprobación la que queda acá.
+  const pendingRebuysAtTable = table
+    ? players.filter(
+        (p) => !!p.rebuyRequestedAt && p.eliminatedAtTableId === table.id
+      )
+    : [];
+
   const isCurrentActorFolded = table
     ? (table.foldedUids ?? []).includes(table.currentActorUid ?? "")
     : false;
@@ -304,6 +315,12 @@ function MesaContent({
     });
   };
 
+  const handleApproveRebuy = async (p: Player) => {
+    await run(async () => {
+      await registerRebuy(tournament, p.uid, profile.uid, tables);
+    });
+  };
+
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
       <div className="w-full max-w-2xl mx-auto flex flex-col gap-6">
@@ -352,6 +369,29 @@ function MesaContent({
               ))}
             </select>
           </label>
+        )}
+
+        {isDealer && pendingRebuysAtTable.length > 0 && (
+          <Card className="flex flex-col gap-3 border-2 border-pp-green-dark/30">
+            <p className="text-sm font-medium text-pp-brown/70">
+              Recompras pendientes en esta mesa
+            </p>
+            {pendingRebuysAtTable.map((p) => (
+              <div
+                key={p.uid}
+                className="flex items-center justify-between gap-3"
+              >
+                <span className="text-sm text-pp-brown">{p.displayName}</span>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => handleApproveRebuy(p)}
+                >
+                  Aprobar recompra
+                </Button>
+              </div>
+            ))}
+          </Card>
         )}
 
         {isBreakOrAddon && (

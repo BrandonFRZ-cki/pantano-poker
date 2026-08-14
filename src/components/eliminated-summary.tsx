@@ -34,7 +34,13 @@ export function EliminatedOverlay({
   onClose: () => void;
 }) {
   const [requesting, setRequesting] = useState(false);
-  const [requested, setRequested] = useState(!!player.rebuyRequestedAt);
+  // "requested" se deriva en vivo de player.rebuyRequestedAt (llega como
+  // prop, actualizada por Firestore) en vez de guardarse en un useState
+  // aparte: así, si el dealer aprueba la recompra, este texto se actualiza
+  // solo en vez de quedar pegado. justRequested es solo para que el botón
+  // cambie al toque, antes de que vuelva la confirmación de Firestore.
+  const [justRequested, setJustRequested] = useState(false);
+  const requested = justRequested || !!player.rebuyRequestedAt;
 
   const ranked = rankPlayers(players);
   const mine = ranked.find((r) => r.player.uid === player.uid);
@@ -54,7 +60,7 @@ export function EliminatedOverlay({
     setRequesting(true);
     try {
       await requestRebuy(tournament.id, player.uid);
-      setRequested(true);
+      setJustRequested(true);
     } finally {
       setRequesting(false);
     }
@@ -217,9 +223,15 @@ export function EliminationGate({ tournamentId }: { tournamentId: string }) {
 
   if (!tournament || !player) return null;
 
+  // Ojo: no alcanza con "showOverlay" solo. Si el dealer aprueba la
+  // recompra (vuelve a "active"), player.status ya no es "eliminated" y acá
+  // se deja de mostrar solo, sin necesidad de resetear showOverlay a mano
+  // (que además dispararía un setState dentro del efecto de arriba).
+  const overlayVisible = showOverlay && player.status === "eliminated";
+
   return (
     <>
-      {showOverlay && (
+      {overlayVisible && (
         <EliminatedOverlay
           tournament={tournament}
           player={player}
@@ -228,7 +240,7 @@ export function EliminationGate({ tournamentId }: { tournamentId: string }) {
           onClose={() => setShowOverlay(false)}
         />
       )}
-      {player.status === "eliminated" && !showOverlay && (
+      {player.status === "eliminated" && !overlayVisible && (
         <div className="fixed bottom-3 left-3 right-3 z-40 mx-auto max-w-md">
           <EliminatedBanner player={player} onOpen={() => setShowOverlay(true)} />
         </div>

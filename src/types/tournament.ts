@@ -195,6 +195,8 @@ export interface Player {
   eliminatedAt?: number;
   /** playerId de quien lo eliminó, para asignar el bounty */
   eliminatedBy?: string;
+  /** id de la mesa en la que estaba sentado justo al ser eliminado, para que el dealer de esa mesa pueda aprobarle la recompra directo desde Mi mesa */
+  eliminatedAtTableId?: string | null;
   eliminationOrder?: number;
   /** cuántas fichas tenía justo antes de ser eliminado, por si el dealer deshace la eliminación */
   chipsAtElimination?: number;
@@ -214,4 +216,10 @@ export interface Player {
    * obligatorio. null/undefined = las tiene ocultas.
    */
   revealedHand?: string[] | null;
+  /**
+   * epoch ms en que confirmó "Ya estoy sentado" después de que le asignaron
+   * mesa. Se limpia cada vez que cambia de mesa/asiento, para que tenga que
+   * reconfirmar. No aplica a jugadores locales (isLocal).
+   */
+  seatConfirmedAt?: number | null;
 }

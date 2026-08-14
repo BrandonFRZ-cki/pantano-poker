@@ -570,6 +570,7 @@ export async function registerRebuy(
     rebuyCount: increment(1),
     status: "active",
     rebuyRequestedAt: deleteField(),
+    eliminatedAtTableId: deleteField(),
   };
 
   if (tables && tables.length > 0) {
@@ -1192,15 +1193,20 @@ export async function eliminatePlayer(
     eliminationsCount: increment(1),
   });
 
+  const table = tables.find((t) => t.playerIds.includes(eliminatedUid));
+
   // Se guarda el stack que tenía justo antes de salir (chipsAtElimination) y
   // se le pone el contador en 0: ya no tiene fichas en juego. Si el dealer
-  // deshace la eliminación, se restaura ese valor.
+  // deshace la eliminación, se restaura ese valor. También se anota en qué
+  // mesa estaba sentado, para que el dealer de esa mesa le pueda aprobar la
+  // recompra directo desde Mi mesa.
   await updateDoc(
     doc(db, "tournaments", tournament.id, "players", eliminatedUid),
     {
       status: "eliminated",
       eliminatedAt: Date.now(),
       eliminatedBy: eliminatedByUid ?? deleteField(),
+      eliminatedAtTableId: table?.id ?? null,
       eliminationOrder: order,
       tableId: null,
       seat: null,
@@ -1209,7 +1215,6 @@ export async function eliminatePlayer(
     }
   );
 
-  const table = tables.find((t) => t.playerIds.includes(eliminatedUid));
   if (table) {
     // Una eliminación corta la mano en seco: se pausa el reloj de habla de
     // esa mesa (el dealer lo reanuda cuando esté listo) y, si el eliminado
