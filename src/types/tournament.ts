@@ -110,6 +110,12 @@ export interface TournamentSettings {
   seatsPerTable: number;
   /** "fixed": un dealer fijo. "rotating": el rol de dealer puede pasar entre jugadores */
   dealerMode: "fixed" | "rotating";
+  /** Cada cuántos niveles se turnan los dealers entre mesas (0 = nunca rotan) */
+  dealerRotationLevels: number;
+  /** Último nivel en el que se rotaron los dealers (para no repetir la rotación) */
+  lastDealerRotationLevel?: number;
+  /** Último nivel de receso/addon en el que ya se auto-balancearon las mesas */
+  lastBreakBalanceLevel?: number;
 
   status: TournamentStatus;
   currentLevel: number;
@@ -148,6 +154,8 @@ export interface PokerTable {
   speakClockPausedMs?: number | null;
   /** segundos que dura el turno de cada jugador (configurable, 30 por defecto) */
   speakClockSeconds?: number;
+  /** uids que se retiraron (foldearon) en la mano actual; se limpia en cada mano nueva */
+  foldedUids?: string[];
 }
 
 export type TransactionType = "buyin" | "rebuy" | "addon" | "fine";

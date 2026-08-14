@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   finishTournament,
   goToLevel,
@@ -67,7 +67,6 @@ export function TimerCard({
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const advancingRef = useRef(false);
 
   const isRunning = tournament.status === "in_progress";
 
@@ -89,23 +88,9 @@ export function TimerCard({
   const isLastLevel =
     tournament.currentLevel >= tournament.blindStructure.length;
 
-  // Si el tiempo se acabó y hay más niveles, el cliente del dealer avanza
-  // solo. Es una limitación de una app sin servidor propio: si el dealer
-  // cierra la app, el timer no avanza hasta que la vuelva a abrir.
-  useEffect(() => {
-    if (
-      isDealer &&
-      isRunning &&
-      remainingMs <= 0 &&
-      !isLastLevel &&
-      !advancingRef.current
-    ) {
-      advancingRef.current = true;
-      goToLevel(tournament, tournament.currentLevel + 1).finally(() => {
-        advancingRef.current = false;
-      });
-    }
-  }, [isDealer, isRunning, remainingMs, isLastLevel, tournament]);
+  // El auto-avance de nivel cuando se acaba el tiempo ya no vive acá: lo
+  // hace TournamentWatcher (montado en el Header), así funciona sin
+  // importar qué pantalla tenga abierta el dealer.
 
   const runAction = async (action: () => Promise<void>) => {
     setBusy(true);

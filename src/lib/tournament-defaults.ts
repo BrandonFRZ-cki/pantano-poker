@@ -76,9 +76,11 @@ export const PANTANO_BLIND_STRUCTURE: BlindLevel[] = [
 // Reglas de la casa confirmadas en pantano-poker-resumen.md (todas cobran la
 // misma multa, houseRuleFine). Quedan editables al crear/editar el torneo.
 export const PANTANO_HOUSE_RULES: string[] = [
-  "Jugar fuera de turno (se perdona la primera vez)",
+  "Jugar fuera de turno",
   "Hablar de la mano o mostrar las cartas antes del showdown",
   "Prestar fichas entre jugadores",
+  "Hablar de la mano después de haberse retirado (fold)",
+  "Tocar las fichas de otro jugador",
 ];
 
 // El % de reparto y el monto exacto del bounty seguían "pendientes de
@@ -111,6 +113,8 @@ export const PANTANO_DEFAULTS = {
   addonLevel: 6,
   seatsPerTable: 9,
   dealerMode: "fixed" as const,
+  // Cada 4 niveles se turnan los dealers entre mesas (0 = nunca).
+  dealerRotationLevels: 4,
 };
 
 export const CHIP_COLOR_LABEL: Record<keyof ChipDenominations, string> = {
@@ -183,4 +187,5 @@ export const BALA_DEFAULTS = {
   addonLevel: 4,
   seatsPerTable: 6,
   dealerMode: "fixed" as const,
+  dealerRotationLevels: 4,
 };

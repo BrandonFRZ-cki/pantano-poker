@@ -33,6 +33,8 @@ export interface TournamentFormState {
   addonLevel: number;
   seatsPerTable: number;
   dealerMode: "fixed" | "rotating";
+  /** Cada cuántos niveles se turnan los dealers entre mesas (0 = nunca) */
+  dealerRotationLevels: number;
 }
 
 export const BLANK_TOURNAMENT_STATE: TournamentFormState = {
@@ -58,6 +60,7 @@ export const BLANK_TOURNAMENT_STATE: TournamentFormState = {
   addonLevel: 1,
   seatsPerTable: 9,
   dealerMode: "fixed",
+  dealerRotationLevels: 0,
 };
 
 export const PANTANO_TOURNAMENT_STATE: TournamentFormState = {
@@ -81,6 +84,7 @@ export const PANTANO_TOURNAMENT_STATE: TournamentFormState = {
   addonLevel: PANTANO_DEFAULTS.addonLevel,
   seatsPerTable: PANTANO_DEFAULTS.seatsPerTable,
   dealerMode: PANTANO_DEFAULTS.dealerMode,
+  dealerRotationLevels: PANTANO_DEFAULTS.dealerRotationLevels,
 };
 
 export const BALA_TOURNAMENT_STATE: TournamentFormState = {
@@ -104,6 +108,7 @@ export const BALA_TOURNAMENT_STATE: TournamentFormState = {
   addonLevel: BALA_DEFAULTS.addonLevel,
   seatsPerTable: BALA_DEFAULTS.seatsPerTable,
   dealerMode: BALA_DEFAULTS.dealerMode,
+  dealerRotationLevels: BALA_DEFAULTS.dealerRotationLevels,
 };
 
 export function formStateToInput(
@@ -130,6 +135,7 @@ export function formStateToInput(
     addonLevel: form.addonLevel,
     seatsPerTable: form.seatsPerTable,
     dealerMode: form.dealerMode,
+    dealerRotationLevels: form.dealerRotationLevels,
   };
 }
 
@@ -161,5 +167,6 @@ export function tournamentToFormState(
     addonLevel: t.addonLevel ?? 1,
     seatsPerTable: t.seatsPerTable,
     dealerMode: t.dealerMode,
+    dealerRotationLevels: t.dealerRotationLevels ?? 0,
   };
 }

@@ -16,6 +16,55 @@ export function nextInTable(table: PokerTable, fromUid: string | null | undefine
   return order[(idx + 1) % order.length];
 }
 
+/** Uid anterior en la mesa, dando la vuelta al llegar al principio. */
+export function prevInTable(table: PokerTable, fromUid: string | null | undefined): string | null {
+  const order = table.playerIds;
+  if (order.length === 0) return null;
+  if (!fromUid) return order[order.length - 1];
+
+  const idx = order.indexOf(fromUid);
+  if (idx === -1) return order[order.length - 1];
+
+  return order[(idx - 1 + order.length) % order.length];
+}
+
+/**
+ * Igual que nextInTable, pero salta a los jugadores que ya se retiraron
+ * (foldearon) en la mano actual. Si todos están retirados, devuelve null.
+ */
+export function nextActiveInTable(
+  table: PokerTable,
+  fromUid: string | null | undefined
+): string | null {
+  const folded = new Set(table.foldedUids ?? []);
+  const order = table.playerIds;
+  if (order.length === 0) return null;
+
+  let cur = fromUid ?? null;
+  for (let i = 0; i < order.length; i++) {
+    cur = nextInTable(table, cur);
+    if (cur && !folded.has(cur)) return cur;
+  }
+  return null;
+}
+
+/** Igual que prevInTable, pero salta a los jugadores retirados de la mano actual. */
+export function prevActiveInTable(
+  table: PokerTable,
+  fromUid: string | null | undefined
+): string | null {
+  const folded = new Set(table.foldedUids ?? []);
+  const order = table.playerIds;
+  if (order.length === 0) return null;
+
+  let cur = fromUid ?? null;
+  for (let i = 0; i < order.length; i++) {
+    cur = prevInTable(table, cur);
+    if (cur && !folded.has(cur)) return cur;
+  }
+  return null;
+}
+
 export interface BlindSeats {
   buttonUid: string;
   sbUid: string;

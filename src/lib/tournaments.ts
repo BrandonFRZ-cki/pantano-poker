@@ -15,7 +15,12 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { computeBlindSeats, nextInTable } from "@/lib/table-order";
+import {
+  computeBlindSeats,
+  nextActiveInTable,
+  nextInTable,
+  prevActiveInTable,
+} from "@/lib/table-order";
 import type {
   AppUser,
   BlindLevel,
@@ -61,6 +66,7 @@ export interface CreateTournamentInput {
   addonLevel: number;
   seatsPerTable: number;
   dealerMode: "fixed" | "rotating";
+  dealerRotationLevels: number;
 }
 
 /** Crea un torneo nuevo. Quien lo crea queda como "owner" (dueño) del torneo. */
@@ -78,6 +84,8 @@ export async function createTournament(
     levelEndsAt: null,
     pausedRemainingMs: null,
     eliminationsCount: 0,
+    lastDealerRotationLevel: 1,
+    lastBreakBalanceLevel: 0,
     createdAt: Date.now(),
     ownerUid: owner.uid,
     dealerUids: [owner.uid],
@@ -744,6 +752,58 @@ export async function setTableDealer(
 }
 
 /**
+ * Rota a los dealers entre mesas (cada mesa le pasa su dealer a la
+ * siguiente), y anota en qué nivel se hizo la rotación para no repetirla.
+ * Se llama sola desde el watcher global cada tournament.dealerRotationLevels
+ * niveles.
+ */
+export async function rotateTableDealers(
+  tournamentId: string,
+  tables: PokerTable[],
+  currentLevel: number
+): Promise<void> {
+  if (tables.length < 2) {
+    await updateDoc(doc(db, "tournaments", tournamentId), {
+      lastDealerRotationLevel: currentLevel,
+    });
+    return;
+  }
+
+  const dealerUids = tables.map((t) => t.dealerUid ?? null);
+  const rotated = [dealerUids[dealerUids.length - 1], ...dealerUids.slice(0, -1)];
+
+  await Promise.all(
+    tables.map((t, i) =>
+      updateDoc(doc(db, "tournaments", tournamentId, "tables", t.id), {
+        dealerUid: rotated[i],
+      })
+    )
+  );
+
+  await updateDoc(doc(db, "tournaments", tournamentId), {
+    lastDealerRotationLevel: currentLevel,
+  });
+}
+
+/**
+ * Balancea las mesas automáticamente al llegar al receso/addon (mismo
+ * criterio que balanceTables) y anota el nivel para no repetirlo. Se llama
+ * sola desde el watcher global.
+ */
+export async function autoBalanceForBreak(
+  tournamentId: string,
+  tables: PokerTable[],
+  currentLevel: number
+): Promise<void> {
+  if (tables.length > 1) {
+    await balanceTables(tournamentId, tables);
+  }
+  await updateDoc(doc(db, "tournaments", tournamentId), {
+    lastBreakBalanceLevel: currentLevel,
+  });
+}
+
+/**
  * Saca por completo a alguien del torneo (no solo le cambia el rol): borra
  * su registro y lo saca de la mesa si estaba sentado. Pensado para corregir
  * errores, ej. haber marcado sin querer a un dealer como jugador.
@@ -846,6 +906,8 @@ export async function advanceButton(
     currentActorUid: null,
     speakClockEndsAt: null,
     speakClockPausedMs: null,
+    // Mano nueva: nadie está retirado todavía.
+    foldedUids: [],
   });
 }
 
@@ -856,7 +918,9 @@ export async function startSpeakClock(
 ): Promise<void> {
   const seconds = table.speakClockSeconds ?? 30;
   const blinds = computeBlindSeats(table);
-  const firstActor = blinds ? nextInTable(table, blinds.bbUid) : table.playerIds[0] ?? null;
+  const firstActor = blinds
+    ? nextActiveInTable(table, blinds.bbUid)
+    : (table.playerIds[0] ?? null);
 
   await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
     currentActorUid: firstActor,
@@ -890,18 +954,69 @@ export async function resumeSpeakClock(
   });
 }
 
-/** Pasa el turno de habla al siguiente jugador de la mesa y reinicia el reloj. */
+/** Pasa el turno de habla al siguiente jugador de la mesa y reinicia el reloj (salta a los retirados). */
 export async function nextSpeaker(
   tournamentId: string,
   table: PokerTable
 ): Promise<void> {
   const seconds = table.speakClockSeconds ?? 30;
-  const next = nextInTable(table, table.currentActorUid);
+  const next = nextActiveInTable(table, table.currentActorUid);
   await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
     currentActorUid: next,
     speakClockEndsAt: Date.now() + seconds * 1000,
     speakClockPausedMs: null,
   });
+}
+
+/**
+ * Vuelve al turno del jugador anterior (por si el dealer se confundió) y
+ * reinicia el reloj. También salta a los retirados de la mano actual.
+ */
+export async function prevSpeaker(
+  tournamentId: string,
+  table: PokerTable
+): Promise<void> {
+  const seconds = table.speakClockSeconds ?? 30;
+  const prev = prevActiveInTable(table, table.currentActorUid);
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+    currentActorUid: prev,
+    speakClockEndsAt: Date.now() + seconds * 1000,
+    speakClockPausedMs: null,
+  });
+}
+
+/**
+ * Un jugador se retira (fold) de la mano actual: sale del orden de turno
+ * hasta la próxima mano, pero sigue sentado en la mesa. Si tenía el turno,
+ * pasa automáticamente al siguiente jugador activo.
+ */
+export async function foldPlayer(
+  tournamentId: string,
+  table: PokerTable,
+  uid: string
+): Promise<void> {
+  const wasCurrentActor = table.currentActorUid === uid;
+  const updatedTable: PokerTable = {
+    ...table,
+    foldedUids: [...(table.foldedUids ?? []), uid],
+  };
+
+  const updates: Record<string, unknown> = {
+    foldedUids: arrayUnion(uid),
+  };
+
+  if (wasCurrentActor) {
+    const seconds = table.speakClockSeconds ?? 30;
+    const next = nextActiveInTable(updatedTable, uid);
+    updates.currentActorUid = next;
+    updates.speakClockEndsAt = Date.now() + seconds * 1000;
+    updates.speakClockPausedMs = null;
+  }
+
+  await updateDoc(
+    doc(db, "tournaments", tournamentId, "tables", table.id),
+    updates
+  );
 }
 
 /** Cambia cuántos segundos dura el turno de cada jugador en esa mesa. */

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { SideMenu } from "@/components/side-menu";
+import { TournamentWatcher } from "@/components/tournament-watcher";
 
 /**
  * Barra superior con el logo, presente en todas las páginas. Cuando la
@@ -18,6 +19,9 @@ export function Header() {
 
   return (
     <header className="grid grid-cols-[1fr_auto_1fr] items-center py-3 px-3 border-b border-pp-green-mid/10">
+      {tournamentId && firebaseUser && (
+        <TournamentWatcher tournamentId={tournamentId} />
+      )}
       <span />
       <Link
         href={firebaseUser ? "/panel" : "/"}

@@ -436,6 +436,21 @@ export function TournamentFormFields({
             </option>
           </select>
         </label>
+        <label className={labelClass}>
+          Rotar dealers entre mesas cada cuántos niveles (0 = nunca)
+          <input
+            type="number"
+            min={0}
+            className={inputClass}
+            {...numberInputProps(form.dealerRotationLevels)}
+            onChange={(e) =>
+              setForm((p) => ({
+                ...p,
+                dealerRotationLevels: e.target.valueAsNumber || 0,
+              }))
+            }
+          />
+        </label>
       </FormSection>
 
       <FormSection icon={<IconChip />} title="Fichas">
