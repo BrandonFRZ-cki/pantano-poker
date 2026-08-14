@@ -37,7 +37,9 @@ import { RegistrationCard } from "@/components/roster";
 import { TablesCard } from "@/components/tables";
 import { StandingsCard } from "@/components/standings";
 import { PrizesCard } from "@/components/prizes";
+import { BubbleCard } from "@/components/bubble";
 import { FinesCard } from "@/components/fines";
+import { CashboxCard } from "@/components/cashbox";
 import { LoadingScreen } from "@/components/loading";
 import { formatChips } from "@/lib/format";
 
@@ -329,6 +331,8 @@ export default function TorneoDetallePage({
             {isDealer && (
               <FinesCard transactions={transactions} players={players} />
             )}
+
+            {isDealer && <CashboxCard transactions={transactions} />}
           </div>
 
           <div className="flex flex-col gap-6">
@@ -339,6 +343,8 @@ export default function TorneoDetallePage({
             />
 
             <StandingsCard players={players} currentUid={profile.uid} />
+
+            <BubbleCard players={players} />
           </div>
         </div>
 
