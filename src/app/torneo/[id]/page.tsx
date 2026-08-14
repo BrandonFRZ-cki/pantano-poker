@@ -14,7 +14,6 @@ import {
   subscribeToTransactions,
   updatePlayerDisplayName,
 } from "@/lib/tournaments";
-import { EliminatedBanner, EliminatedOverlay } from "@/components/eliminated-summary";
 import type {
   Player,
   PokerTable,
@@ -155,19 +154,6 @@ export default function TorneoDetallePage({
     }
   }, [id, player, profile]);
 
-  // Pantalla completa de "fuiste eliminado": se muestra sola apenas pasa de
-  // activo a eliminado, y se puede reabrir después con el banner chico.
-  const prevStatusRef = useRef<string | undefined>(undefined);
-  const [showEliminatedOverlay, setShowEliminatedOverlay] = useState(false);
-  useEffect(() => {
-    if (!player) return;
-    const prev = prevStatusRef.current;
-    if (prev === "active" && player.status === "eliminated") {
-      setShowEliminatedOverlay(true);
-    }
-    prevStatusRef.current = player.status;
-  }, [player]);
-
   if (loading || !firebaseUser || !profile || fetching) {
     return (
       <LoadingScreen />
@@ -227,15 +213,6 @@ export default function TorneoDetallePage({
 
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
-      {showEliminatedOverlay && (
-        <EliminatedOverlay
-          tournament={tournament}
-          player={player}
-          players={players}
-          transactions={transactions}
-          onClose={() => setShowEliminatedOverlay(false)}
-        />
-      )}
       <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
         <div className="flex items-center justify-between w-full">
           <Link
@@ -251,13 +228,6 @@ export default function TorneoDetallePage({
             </LinkButton>
           )}
         </div>
-
-        {player.status === "eliminated" && !showEliminatedOverlay && (
-          <EliminatedBanner
-            player={player}
-            onOpen={() => setShowEliminatedOverlay(true)}
-          />
-        )}
 
         {tableChangeNotice && (
           <div className="flex items-center justify-between gap-3 rounded-xl bg-pp-green-light/30 border border-pp-green-mid/30 px-4 py-2.5">

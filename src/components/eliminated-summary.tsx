@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { computePot, rankPlayers } from "@/lib/prizes";
-import { requestRebuy } from "@/lib/tournaments";
+import {
+  requestRebuy,
+  subscribeToPlayer,
+  subscribeToPlayers,
+  subscribeToTournament,
+  subscribeToTransactions,
+} from "@/lib/tournaments";
 import type { Player, TournamentSettings, Transaction } from "@/types/tournament";
 import { formatMoney } from "@/lib/format";
 import { Avatar } from "@/components/ui";
@@ -160,5 +167,72 @@ export function EliminatedBanner({
         Ver resumen
       </span>
     </button>
+  );
+}
+
+/**
+ * Componente invisible por defecto, montado en el Header en cualquier
+ * pantalla dentro de un torneo (igual que TournamentWatcher). Antes la
+ * pantalla de "fuiste eliminado" solo se disparaba desde la pantalla
+ * principal del torneo, así que si te eliminaban mientras estabas en "Mi
+ * mesa" o en "Reglas" no la veías hasta volver al menú principal. Al vivir
+ * acá aparece de una, sin importar en qué pantalla estés.
+ */
+export function EliminationGate({ tournamentId }: { tournamentId: string }) {
+  const { profile } = useAuth();
+  const [tournament, setTournament] = useState<TournamentSettings | null>(
+    null
+  );
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const prevStatusRef = useRef<string | undefined>(undefined);
+
+  useEffect(
+    () => subscribeToTournament(tournamentId, setTournament),
+    [tournamentId]
+  );
+  useEffect(() => {
+    if (!profile) return;
+    return subscribeToPlayer(tournamentId, profile.uid, setPlayer);
+  }, [tournamentId, profile]);
+  useEffect(
+    () => subscribeToPlayers(tournamentId, setPlayers),
+    [tournamentId]
+  );
+  useEffect(
+    () => subscribeToTransactions(tournamentId, setTransactions),
+    [tournamentId]
+  );
+
+  useEffect(() => {
+    if (!player) return;
+    const prev = prevStatusRef.current;
+    if (prev === "active" && player.status === "eliminated") {
+      setShowOverlay(true);
+    }
+    prevStatusRef.current = player.status;
+  }, [player]);
+
+  if (!tournament || !player) return null;
+
+  return (
+    <>
+      {showOverlay && (
+        <EliminatedOverlay
+          tournament={tournament}
+          player={player}
+          players={players}
+          transactions={transactions}
+          onClose={() => setShowOverlay(false)}
+        />
+      )}
+      {player.status === "eliminated" && !showOverlay && (
+        <div className="fixed bottom-3 left-3 right-3 z-40 mx-auto max-w-md">
+          <EliminatedBanner player={player} onOpen={() => setShowOverlay(true)} />
+        </div>
+      )}
+    </>
   );
 }
