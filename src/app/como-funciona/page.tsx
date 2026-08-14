@@ -4,6 +4,7 @@ import {
   IconArrowLeft,
   IconBook,
   IconChip,
+  IconGavel,
   IconTable,
 } from "@/components/ui";
 
@@ -139,6 +140,18 @@ export default function ComoFuncionaPage() {
             el reloj y los premios los controla la app.
           </p>
         </div>
+
+        <Link
+          href="/reglas-pantano-poker"
+          className="flex items-center justify-center gap-2 rounded-full bg-pp-green-dark text-pp-cream font-display py-3.5 px-6 text-center hover:bg-pp-green-mid transition-colors"
+        >
+          <IconGavel />
+          Reglas de torneo Pantano Poker
+        </Link>
+        <p className="text-xs text-pp-brown/50 text-center -mt-5">
+          El reglamento completo, explicado desde cero: ciegas, ante,
+          all-in, botes secundarios y más.
+        </p>
 
         <div className="flex flex-col gap-4">
           <p className="text-sm font-medium text-pp-brown/70 text-center">

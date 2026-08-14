@@ -115,8 +115,14 @@ export default function Home() {
           </>
         )}
         <Link
-          href="/como-funciona"
+          href="/reglas-pantano-poker"
           className="text-sm text-pp-brown/60 hover:text-pp-brown underline mt-1"
+        >
+          Reglas de torneo Pantano Poker
+        </Link>
+        <Link
+          href="/como-funciona"
+          className="text-sm text-pp-brown/60 hover:text-pp-brown underline"
         >
           ¿Cómo funciona la web?
         </Link>
