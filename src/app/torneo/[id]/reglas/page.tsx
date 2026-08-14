@@ -148,6 +148,58 @@ export default function ReglasPage({
 
         <Card className="flex flex-col gap-3">
           <div className="flex items-center gap-2 text-pp-green-dark">
+            <IconInfo />
+            <p className="text-sm font-medium">Cómo se calculan los premios</p>
+          </div>
+          <p className="text-sm text-pp-brown/80">
+            El bote es todo lo recaudado (inscripciones, recompras y addons)
+            menos el bounty que ya se pagó por las eliminaciones. Eso quiere
+            decir que el bote que se reparte en premios{" "}
+            <span className="font-medium">baja cada vez que se elimina a alguien con bounty</span>
+            , aunque nadie retire plata: esa parte ya quedó separada para
+            quien hizo la eliminación.
+          </p>
+          <div className="rounded-xl bg-pp-brown/5 px-3 py-2.5 text-xs text-pp-brown/70 flex flex-col gap-1">
+            <p className="font-medium text-pp-brown">Ejemplo</p>
+            <p>
+              Supongamos un bote de {formatMoney(15)} y un bounty de{" "}
+              {formatMoney(tournament.bountyPerElimination || 1)} por
+              eliminación.
+            </p>
+            <p>
+              Recién armado el torneo: {formatMoney(15)} para repartir.
+            </p>
+            <p>
+              Eliminan al primer jugador y se acredita el bounty: quedan{" "}
+              {formatMoney(15 - (tournament.bountyPerElimination || 1))} para
+              premios.
+            </p>
+            <p>
+              Eliminan a otro con bounty: quedan{" "}
+              {formatMoney(
+                15 - (tournament.bountyPerElimination || 1) * 2
+              )}
+              . Y así con cada eliminación con bounty acreditado.
+            </p>
+          </div>
+          <p className="text-sm text-pp-brown/80">
+            Cuántos puestos pagan y qué % le toca a cada uno sale de una
+            tabla estándar según cuántos jugadores entraron en total (no se
+            configura a mano). Si hay un monto garantizado para el 1er
+            puesto, se lo lleva completo apenas el bote lo cubre, y el resto
+            se reparte con lo que sobra.
+          </p>
+          <p className="text-sm text-pp-brown/80">
+            La &quot;burbuja de premios&quot; (en la pantalla del torneo) ya
+            tiene en cuenta que, si hay N jugadores, exactamente N-1 van a
+            ser eliminados y solo 1 puede ganar: por eso cada puesto se va
+            marcando como decidido apenas alguien es eliminado ahí, en vez
+            de mostrar una posición que todavía puede cambiar.
+          </p>
+        </Card>
+
+        <Card className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-pp-green-dark">
             <IconChip />
             <p className="text-sm font-medium">Fichas</p>
           </div>
