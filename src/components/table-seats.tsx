@@ -94,6 +94,7 @@ export function SeatDiagram({
         const isTurn = table.currentActorUid === uid;
         const isMe = uid === currentUid;
         const posLabel = positionLabels?.[uid];
+        const isFolded = (table.foldedUids ?? []).includes(uid);
         const tappable = !compact && !!onSeatTap;
 
         return (
@@ -112,7 +113,7 @@ export function SeatDiagram({
                 isTurn
                   ? "bg-pp-green-light/40 ring-2 ring-pp-green-dark"
                   : "bg-white/90"
-              } ${tappable ? "cursor-pointer hover:ring-2 hover:ring-pp-green-mid" : "cursor-default"}`}
+              } ${isFolded ? "opacity-40" : ""} ${tappable ? "cursor-pointer hover:ring-2 hover:ring-pp-green-mid" : "cursor-default"}`}
             >
               <div className="relative">
                 <Avatar name={player.displayName} size={avatarSize} />
@@ -143,10 +144,16 @@ export function SeatDiagram({
                   <span className="text-[10px] text-pp-brown/60">
                     {formatChips(player.chips)}
                   </span>
-                  {posLabel && (
-                    <span className="text-[9px] font-medium text-pp-green-dark">
-                      {posLabel}
+                  {isFolded ? (
+                    <span className="text-[9px] font-medium text-pp-brown/50">
+                      Se retiró
                     </span>
+                  ) : (
+                    posLabel && (
+                      <span className="text-[9px] font-medium text-pp-green-dark">
+                        {posLabel}
+                      </span>
+                    )
                   )}
                   {player.revealedHand && player.revealedHand.length > 0 && (
                     <span className="text-[10px] font-medium text-pp-brown">

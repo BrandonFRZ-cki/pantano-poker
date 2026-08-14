@@ -7,8 +7,11 @@ import { useAuth } from "@/lib/auth-context";
 import {
   advanceButton,
   eliminatePlayer,
+  foldPlayer,
   nextSpeaker,
   pauseSpeakClock,
+  prevSpeaker,
+  registerFine,
   registerRebuy,
   resumeSpeakClock,
   seatPlayerAtTable,
@@ -60,6 +63,8 @@ function MesaContent({
   const [actionPlayer, setActionPlayer] = useState<Player | null>(null);
   const [stackValue, setStackValue] = useState("");
   const [eliminatorChoice, setEliminatorChoice] = useState("");
+  const [finingPlayer, setFiningPlayer] = useState(false);
+  const [fineReason, setFineReason] = useState("");
 
   useEffect(() => {
     if (!loading && !firebaseUser) {
@@ -159,6 +164,21 @@ function MesaContent({
     tournament.rebuyUntilLevel ?? tournament.blindStructure.length;
   const rebuysOpen = tournament.currentLevel <= rebuyUntilLevel;
 
+  const currentBlindLevel =
+    tournament.blindStructure[tournament.currentLevel - 1];
+  const isBreakOrAddon =
+    !!currentBlindLevel?.isBreak ||
+    tournament.currentLevel === tournament.addonLevel;
+
+  const isCurrentActorFolded = table
+    ? (table.foldedUids ?? []).includes(table.currentActorUid ?? "")
+    : false;
+  const canFold =
+    !!table &&
+    !!table.currentActorUid &&
+    !isCurrentActorFolded &&
+    (isDealer || viewedPlayer?.uid === table.currentActorUid);
+
   // Candidatos a "quién lo eliminó": jugadores activos de esta misma mesa,
   // sin contar al dealer fijo (no juega).
   const eliminatorCandidates = table
@@ -171,10 +191,14 @@ function MesaContent({
       )
     : [];
 
+  const houseRules = tournament.houseRules ?? [];
+
   const openActionPanel = (p: Player) => {
     setActionPlayer(p);
     setStackValue(String(p.chips));
     setEliminatorChoice("");
+    setFiningPlayer(false);
+    setFineReason(houseRules[0] ?? "");
     setError(null);
   };
 
@@ -182,6 +206,16 @@ function MesaContent({
     setActionPlayer(null);
     setStackValue("");
     setEliminatorChoice("");
+    setFiningPlayer(false);
+    setFineReason("");
+  };
+
+  const handleFine = async () => {
+    if (!actionPlayer) return;
+    await run(async () => {
+      await registerFine(tournament, actionPlayer.uid, profile.uid, fineReason);
+      setFiningPlayer(false);
+    });
   };
 
   const handleSaveStack = async () => {
@@ -267,6 +301,18 @@ function MesaContent({
               ))}
             </select>
           </label>
+        )}
+
+        {isBreakOrAddon && (
+          <div className="rounded-xl bg-amber-50 border border-amber-300/60 px-4 py-2.5 text-center">
+            <p className="text-sm text-amber-900">
+              {currentBlindLevel?.isBreak
+                ? "Es el receso"
+                : "Ventana de addon"}{" "}
+              — no se pueden jugar manos ahora. Las mesas ya se
+              rebalancearon solas.
+            </p>
+          </div>
         )}
 
         {!table ? (
@@ -363,6 +409,50 @@ function MesaContent({
                   </Button>
                 </div>
 
+                {finingPlayer ? (
+                  <div className="flex items-center gap-2 bg-pp-brown/5 rounded-xl px-3 py-2 flex-wrap">
+                    <span className="text-xs text-pp-brown/70 shrink-0">
+                      Motivo
+                    </span>
+                    {houseRules.length > 0 ? (
+                      <select
+                        className="flex-1 text-xs border border-pp-green-mid/30 rounded-full px-2 py-1 bg-white text-pp-brown min-w-[8rem]"
+                        value={fineReason}
+                        onChange={(e) => setFineReason(e.target.value)}
+                      >
+                        {houseRules.map((rule) => (
+                          <option key={rule} value={rule}>
+                            {rule}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="flex-1 text-xs text-pp-brown/50">
+                        No hay motivos configurados.
+                      </span>
+                    )}
+                    <Button size="sm" disabled={busy} onClick={handleFine}>
+                      Confirmar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFiningPlayer(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => setFiningPlayer(true)}
+                  >
+                    Poner multa
+                  </Button>
+                )}
+
                 {rebuysOpen && (
                   <Button
                     variant="ghost"
@@ -390,15 +480,36 @@ function MesaContent({
                 contar fichas, armar el pozo de un all-in y más.
               </p>
 
+              {canFold && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    run(() => foldPlayer(id, table, table.currentActorUid!))
+                  }
+                  className="w-full rounded-2xl border-2 border-red-700/40 text-red-700 font-display py-3 hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  Fold (Retirarse){currentActor && ` — ${currentActor.displayName}`}
+                </button>
+              )}
+
               {isDealer && (
                 <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
                   <Button
                     variant="secondary"
                     size="sm"
-                    disabled={busy}
+                    disabled={busy || isBreakOrAddon}
                     onClick={() => run(() => advanceButton(id, table))}
                   >
-                    Siguiente mano
+                    {isBreakOrAddon ? "Siguiente mano (receso)" : "Siguiente mano"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => run(() => prevSpeaker(id, table))}
+                  >
+                    Mano anterior
                   </Button>
                   {speakClockRunning ? (
                     <Button
