@@ -121,8 +121,9 @@ export default function ReglasPage({
             </div>
           </div>
           <p className="text-xs text-pp-brown/50">
-            Recompras hasta el nivel {tournament.rebuyUntilLevel} · addon
-            disponible desde el nivel {tournament.addonLevel}.
+            Última recompra y addon, juntos, en el nivel{" "}
+            {tournament.rebuyUntilLevel} (el receso). Después de ese nivel
+            ya no se puede ni recomprar ni hacer addon.
           </p>
           <p className="text-xs text-pp-brown/50">
             Bounty por eliminación:{" "}

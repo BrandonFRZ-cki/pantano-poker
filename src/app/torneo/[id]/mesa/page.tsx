@@ -169,6 +169,7 @@ function MesaContent({
   const isBreakOrAddon =
     !!currentBlindLevel?.isBreak ||
     tournament.currentLevel === tournament.addonLevel;
+  const handInProgressAtTable = !!table?.currentActorUid;
 
   const isCurrentActorFolded = table
     ? (table.foldedUids ?? []).includes(table.currentActorUid ?? "")
@@ -180,13 +181,15 @@ function MesaContent({
     (isDealer || viewedPlayer?.uid === table.currentActorUid);
 
   // Candidatos a "quién lo eliminó": jugadores activos de esta misma mesa,
-  // sin contar al dealer fijo (no juega).
+  // sin contar al dealer fijo (no juega) ni a quien ya se retiró (fold) en
+  // la mano actual (no pudo haber eliminado a nadie en esa mano).
   const eliminatorCandidates = table
     ? players.filter(
         (p) =>
           p.status === "active" &&
           p.uid !== actionPlayer?.uid &&
           table.playerIds.includes(p.uid) &&
+          !(table.foldedUids ?? []).includes(p.uid) &&
           !(tournament.dealerMode === "fixed" && tournament.dealerUids.includes(p.uid))
       )
     : [];
@@ -234,7 +237,13 @@ function MesaContent({
   const handleEliminate = async () => {
     if (!actionPlayer) return;
     await run(async () => {
-      await eliminatePlayer(tournament, tables, actionPlayer, eliminatorChoice || null);
+      await eliminatePlayer(
+        tournament,
+        tables,
+        actionPlayer,
+        eliminatorChoice || null,
+        players
+      );
       closeActionPanel();
     });
   };
@@ -306,11 +315,13 @@ function MesaContent({
         {isBreakOrAddon && (
           <div className="rounded-xl bg-amber-50 border border-amber-300/60 px-4 py-2.5 text-center">
             <p className="text-sm text-amber-900">
-              {currentBlindLevel?.isBreak
-                ? "Es el receso"
-                : "Ventana de addon"}{" "}
-              — no se pueden jugar manos ahora. Las mesas ya se
-              rebalancearon solas.
+              Es el receso — última recompra y ventana de addon. No se
+              pueden jugar más manos.{" "}
+              {tournament.lastBreakBalanceLevel === tournament.currentLevel
+                ? "Las mesas ya se rebalancearon solas."
+                : handInProgressAtTable
+                  ? "Termina la mano en curso: las mesas se rebalancean solas apenas se dé Siguiente mano."
+                  : "Las mesas se están rebalanceando solas."}
             </p>
           </div>
         )}
@@ -498,10 +509,10 @@ function MesaContent({
                   <Button
                     variant="secondary"
                     size="sm"
-                    disabled={busy || isBreakOrAddon}
+                    disabled={busy}
                     onClick={() => run(() => advanceButton(id, table))}
                   >
-                    {isBreakOrAddon ? "Siguiente mano (receso)" : "Siguiente mano"}
+                    Siguiente mano
                   </Button>
                   <Button
                     variant="ghost"
@@ -539,12 +550,12 @@ function MesaContent({
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={busy}
+                      disabled={busy || isBreakOrAddon}
                       onClick={() => run(() => startSpeakClock(id, table))}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <IconPlay />
-                        Iniciar reloj
+                        {isBreakOrAddon ? "Iniciar reloj (receso)" : "Iniciar reloj"}
                       </span>
                     </Button>
                   )}

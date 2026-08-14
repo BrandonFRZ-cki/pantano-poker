@@ -232,9 +232,6 @@ export function TournamentFormFields({
     }));
   };
 
-  const levelLabel = (lvl: BlindLevel) =>
-    `Nivel ${lvl.level} — ${lvl.smallBlind}/${lvl.bigBlind}${lvl.isBreak ? " (receso)" : ""}`;
-
   return (
     <>
       <FormSection icon={<IconInfo />} title="Datos generales">
@@ -728,52 +725,29 @@ export function TournamentFormFields({
           </div>
         ))}
 
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-pp-green-mid/10">
-          <label className={labelClass}>
-            Recompras/reingresos hasta
-            <select
-              className={inputClass}
-              value={form.rebuyUntilLevel}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  rebuyUntilLevel: Number(e.target.value) || 1,
-                }))
-              }
-            >
-              {form.blindStructure.map((lvl) => (
-                <option key={lvl.level} value={lvl.level}>
-                  {levelLabel(lvl)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={labelClass}>
-            Addon disponible desde
-            <select
-              className={inputClass}
-              value={form.addonLevel}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  addonLevel: Number(e.target.value) || 1,
-                }))
-              }
-            >
-              {form.blindStructure.map((lvl) => (
-                <option key={lvl.level} value={lvl.level}>
-                  {levelLabel(lvl)}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="rounded-xl bg-pp-brown/5 px-3 py-2.5 mt-2">
+          {(() => {
+            const breakLvl = form.blindStructure.find((lvl) => lvl.isBreak);
+            return breakLvl ? (
+              <p className="text-sm text-pp-brown">
+                El receso, la última recompra y la ventana de addon van
+                juntos: todo pasa en el nivel {breakLvl.level} (
+                {breakLvl.smallBlind}/{breakLvl.bigBlind}).
+              </p>
+            ) : (
+              <p className="text-sm text-pp-brown">
+                Todavía no marcaste ningún nivel como &quot;receso&quot; — sin
+                eso, las recompras y el addon quedan abiertos hasta el
+                último nivel.
+              </p>
+            );
+          })()}
+          <p className="text-xs text-pp-brown/50 mt-1">
+            Marca el check de &quot;receso&quot; en la fila que corresponda
+            (por ejemplo el corte de las 10pm): ahí se corta la última
+            recompra y se abre el addon, todo en el mismo momento.
+          </p>
         </div>
-        <p className="text-xs text-pp-brown/50">
-          Después del nivel elegido, &quot;Recompra&quot; se deja de ofrecer a
-          los eliminados. El addon se habilita a partir del nivel elegido
-          (marca esa fila como &quot;receso&quot; si coincide con el corte de
-          las 10pm).
-        </p>
       </FormSection>
 
       <FormSection

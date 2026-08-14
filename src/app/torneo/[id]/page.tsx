@@ -35,7 +35,6 @@ import { TimerCard } from "@/components/timer";
 import { RegistrationCard } from "@/components/roster";
 import { TablesCard } from "@/components/tables";
 import { StandingsCard } from "@/components/standings";
-import { PrizesCard } from "@/components/prizes";
 import { BubbleCard } from "@/components/bubble";
 import { FinesCard } from "@/components/fines";
 import { CashboxCard } from "@/components/cashbox";
@@ -306,15 +305,13 @@ export default function TorneoDetallePage({
           </div>
 
           <div className="flex flex-col gap-6">
-            <PrizesCard
+            <StandingsCard players={players} currentUid={profile.uid} />
+
+            <BubbleCard
               tournament={tournament}
               players={players}
               transactions={transactions}
             />
-
-            <StandingsCard players={players} currentUid={profile.uid} />
-
-            <BubbleCard players={players} />
           </div>
         </div>
 

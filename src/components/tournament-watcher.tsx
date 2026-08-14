@@ -77,7 +77,12 @@ export function TournamentWatcher({ tournamentId }: { tournamentId: string }) {
     }
   }, [tournament, tables, isDealer, tournamentId]);
 
-  // 3. Auto-balanceo de mesas al llegar al receso/addon.
+  // 3. Auto-balanceo de mesas al llegar al receso/addon. Si alguna mesa
+  // todavía tiene una mano en curso (alguien con el turno de hablar activo),
+  // se espera a que termine (se dé "Siguiente mano") para no mover a nadie
+  // en medio de una jugada — el aviso en pantalla ya avisa que viene el
+  // receso, pero el balanceo real recién pasa cuando todas las mesas están
+  // "entre manos".
   useEffect(() => {
     if (!tournament || !isDealer || balancingRef.current) return;
     const currentBlindLevel = tournament.blindStructure[tournament.currentLevel - 1];
@@ -86,6 +91,8 @@ export function TournamentWatcher({ tournamentId }: { tournamentId: string }) {
     if (!isBreakOrAddon) return;
     if (tournament.lastBreakBalanceLevel === tournament.currentLevel) return;
     if (tables.length < 2) return;
+    const handInProgress = tables.some((t) => !!t.currentActorUid);
+    if (handInProgress) return;
     balancingRef.current = true;
     autoBalanceForBreak(tournamentId, tables, tournament.currentLevel).finally(() => {
       balancingRef.current = false;

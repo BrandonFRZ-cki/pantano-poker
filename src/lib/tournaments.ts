@@ -69,16 +69,30 @@ export interface CreateTournamentInput {
   dealerRotationLevels: number;
 }
 
+/**
+ * El receso y el addon van juntos: la última recompra y la ventana de
+ * addon son justo el nivel marcado como receso (isBreak) en la
+ * estructura de ciegas, no algo que se configure aparte. Si no hay ningún
+ * nivel marcado como receso, cae al último nivel (nunca antes de tiempo).
+ */
+function breakLevelOf(blindStructure: BlindLevel[]): number {
+  const found = blindStructure.find((lvl) => lvl.isBreak);
+  return found ? found.level : blindStructure.length;
+}
+
 /** Crea un torneo nuevo. Quien lo crea queda como "owner" (dueño) del torneo. */
 export async function createTournament(
   input: CreateTournamentInput,
   owner: AppUser
 ): Promise<string> {
   const newDocRef = doc(collection(db, "tournaments"));
+  const breakLevel = breakLevelOf(input.blindStructure);
 
   const settings: TournamentSettings = {
     id: newDocRef.id,
     ...input,
+    rebuyUntilLevel: breakLevel,
+    addonLevel: breakLevel,
     status: "registering",
     currentLevel: 1,
     levelEndsAt: null,
@@ -290,7 +304,12 @@ export async function updateTournamentSettings(
   tournamentId: string,
   input: CreateTournamentInput
 ): Promise<void> {
-  await updateDoc(doc(db, "tournaments", tournamentId), { ...input });
+  const breakLevel = breakLevelOf(input.blindStructure);
+  await updateDoc(doc(db, "tournaments", tournamentId), {
+    ...input,
+    rebuyUntilLevel: breakLevel,
+    addonLevel: breakLevel,
+  });
 }
 
 export async function getPlayerInTournament(
@@ -1126,7 +1145,8 @@ export async function eliminatePlayer(
   tournament: TournamentSettings,
   tables: PokerTable[],
   eliminatedPlayer: Player,
-  eliminatedByUid: string | null
+  eliminatedByUid: string | null,
+  players?: Player[]
 ): Promise<void> {
   const order = tournament.eliminationsCount + 1;
   const eliminatedUid = eliminatedPlayer.uid;
@@ -1181,6 +1201,17 @@ export async function eliminatePlayer(
       doc(db, "tournaments", tournament.id, "players", eliminatedByUid),
       { bountiesWon: arrayUnion(eliminatedUid) }
     );
+  }
+
+  // Si antes de esta eliminación solo quedaban 2 jugadores activos, el otro
+  // ya ganó: el torneo se cierra solo (queda como 1er puesto en el reparto).
+  if (players) {
+    const activeCount = players.filter(
+      (p) => p.status === "active" && !!p.buyInAt
+    ).length;
+    if (activeCount === 2) {
+      await finishTournament(tournament.id);
+    }
   }
 }
 

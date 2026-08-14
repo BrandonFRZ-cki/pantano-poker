@@ -21,7 +21,9 @@ import { Avatar, Badge, Button, Card } from "@/components/ui";
 /**
  * Candidatos a "quién lo eliminó": solo jugadores activos de la misma mesa
  * (un all-in solo lo gana alguien que estaba en esa mano). Si el dealer es
- * fijo (no juega), se lo excluye aunque por algún motivo tenga buy-in.
+ * fijo (no juega), se lo excluye aunque por algún motivo tenga buy-in. Y si
+ * ya se retiró (fold) en la mano actual, tampoco pudo haber sido quien
+ * eliminó a nadie en esa mano.
  */
 function sameTableActivePlayers(
   target: Player,
@@ -31,11 +33,13 @@ function sameTableActivePlayers(
 ): Player[] {
   const table = tables.find((t) => t.playerIds.includes(target.uid));
   if (!table) return [];
+  const folded = table.foldedUids ?? [];
   return players.filter(
     (other) =>
       other.status === "active" &&
       !!other.buyInAt &&
       table.playerIds.includes(other.uid) &&
+      !folded.includes(other.uid) &&
       !(
         tournament.dealerMode === "fixed" &&
         tournament.dealerUids.includes(other.uid)
@@ -101,7 +105,8 @@ export function RegistrationCard({
         tournament,
         tables,
         target,
-        eliminatorChoice || null
+        eliminatorChoice || null,
+        players
       );
     } catch (err) {
       console.error(err);

@@ -1,20 +1,30 @@
 "use client";
 
-import type { Player } from "@/types/tournament";
-import { rankPlayers } from "@/lib/prizes";
+import type { Player, TournamentSettings, Transaction } from "@/types/tournament";
+import { computeChipLeaderBonus, computePot, rankPlayers } from "@/lib/prizes";
 import { standardPayoutSplit } from "@/lib/payout-table";
+import { formatMoney } from "@/lib/format";
 import { Avatar, Card } from "@/components/ui";
 
 /**
- * Tarjeta de la burbuja de premios: un círculo por puesto (del último al
- * primero), separado de "Posiciones" (que ordena por fichas en vivo). Acá
- * un círculo solo se "llena" cuando ese puesto ya quedó fijo — es decir,
- * cuando alguien fue eliminado en esa posición. Mientras un puesto todavía
- * lo puede ocupar cualquiera de los jugadores activos, queda vacío. Los
- * puestos que pagan (según la tabla estándar, calculada solo con la
- * cantidad de jugadores que entraron) se resaltan en verde.
+ * Tarjeta pública de la burbuja de premios: cuánto se recaudó, cuánto le
+ * toca a cada puesto (1º, 2º, 3º...) y un círculo por puesto que solo se
+ * "llena" con el nombre de alguien cuando ese puesto ya quedó decidido de
+ * verdad (fue eliminado ahí). A propósito NO se le pone nombre a un monto
+ * mientras el puesto todavía lo puede ocupar cualquiera de los activos —
+ * antes se mostraba el líder de fichas de turno con su premio al lado, y
+ * daba la sensación de que ya había ganado. Reemplaza a la vieja tarjeta
+ * "Bote y premios".
  */
-export function BubbleCard({ players }: { players: Player[] }) {
+export function BubbleCard({
+  tournament,
+  players,
+  transactions,
+}: {
+  tournament: TournamentSettings;
+  players: Player[];
+  transactions: Transaction[];
+}) {
   const ranked = rankPlayers(players);
   const entries = ranked.length;
   if (entries < 2) return null;
@@ -25,18 +35,79 @@ export function BubbleCard({ players }: { players: Player[] }) {
   const activeCount = ranked.filter((r) => r.player.status === "active").length;
   const paidPlaces = standardPayoutSplit(entries).length;
 
+  // Torneos creados antes de estos campos: se asume que seguían abiertos
+  // en cualquier nivel.
+  const rebuyUntilLevel =
+    tournament.rebuyUntilLevel ?? tournament.blindStructure.length;
+  const addonLevel = tournament.addonLevel ?? 1;
+  const closeLevel = Math.max(rebuyUntilLevel, addonLevel);
+  const entriesClosed =
+    tournament.status === "finished" || tournament.currentLevel > closeLevel;
+
+  const pot = entriesClosed ? computePot(tournament, players, transactions) : null;
+  const chipLeader = entriesClosed
+    ? computeChipLeaderBonus(tournament, players)
+    : null;
+  const bountyMode = tournament.bountyMode ?? "fixed";
+
   const slots = Array.from({ length: entries }, (_, i) => {
     const rank = i + 1;
     const locked = rank > activeCount;
     const entry = locked ? ranked.find((r) => r.rank === rank) : undefined;
-    return { rank, locked, player: entry?.player ?? null };
+    const amount = pot?.prizes.find((p) => p.rank === rank)?.amount ?? null;
+    return { rank, locked, player: entry?.player ?? null, amount };
   });
 
   return (
     <Card className="flex flex-col gap-4">
-      <p className="text-sm font-medium text-pp-brown/70">
-        Burbuja de premios
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium text-pp-brown/70">
+          Burbuja de premios
+        </p>
+        {pot && (
+          <span className="font-display text-lg text-pp-green-dark">
+            {formatMoney(pot.netPool)}
+          </span>
+        )}
+      </div>
+
+      {pot ? (
+        <p className="text-xs text-pp-brown/50">
+          Recaudado {formatMoney(pot.totalCollected)}
+          {pot.totalBounty > 0 &&
+            (bountyMode === "mystery"
+              ? " · bounty misterioso (se revela al final)"
+              : ` · bounty pagado ${formatMoney(pot.totalBounty)}`)}
+        </p>
+      ) : (
+        <p className="text-xs text-pp-brown/50">
+          El bote todavía puede crecer: el monto de cada puesto se muestra
+          cuando cierren las recompras y el addon (nivel {closeLevel}).
+        </p>
+      )}
+
+      {chipLeader && (
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-pp-green-light/20 px-3 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar name={chipLeader.player.displayName} size={28} />
+            <span className="text-sm text-pp-brown truncate">
+              👑 Líder de fichas: {chipLeader.player.displayName}
+            </span>
+          </div>
+          <span className="text-sm font-medium text-pp-green-dark shrink-0">
+            {formatMoney(chipLeader.amount)}
+          </span>
+        </div>
+      )}
+
+      {pot && tournament.guaranteedFirstPlace > 0 && (
+        <p className="text-xs text-pp-brown/50">
+          {pot.guaranteedMet
+            ? `1er puesto asegurado: ${formatMoney(tournament.guaranteedFirstPlace)}`
+            : `Todavía no se alcanza el mínimo garantizado para el 1er puesto (${formatMoney(tournament.guaranteedFirstPlace)}), así que por ahora se reparte por porcentaje.`}
+        </p>
+      )}
+
       <div className="flex flex-col gap-2">
         {slots.map((slot) => {
           const isPaid = slot.rank <= paidPlaces;
@@ -65,24 +136,31 @@ export function BubbleCard({ players }: { players: Player[] }) {
                   isPaid ? "text-pp-green-dark font-medium" : "text-pp-brown/70"
                 }`}
               >
-                {slot.locked && slot.player ? slot.player.displayName : "Por decidir"}
+                {slot.locked && slot.player ? slot.player.displayName : "Por definir"}
               </span>
               <span
-                className={`text-xs shrink-0 ${
+                className={`text-xs shrink-0 text-right ${
                   isPaid ? "text-pp-green-dark font-medium" : "text-pp-brown/50"
                 }`}
               >
-                {slot.locked ? `${slot.rank}º` : isPaid ? "En el dinero" : "—"}
+                {slot.amount != null
+                  ? formatMoney(slot.amount)
+                  : slot.locked
+                    ? `${slot.rank}º`
+                    : isPaid
+                      ? "En el dinero"
+                      : "—"}
               </span>
             </div>
           );
         })}
       </div>
+
       <p className="text-xs text-pp-brown/40">
-        Un círculo se llena recién cuando ese puesto ya quedó decidido (el
-        jugador fue eliminado ahí). Los puestos en verde son los que pagan.
-        Esto es distinto de &quot;Posiciones&quot;, que ordena por fichas en
-        vivo.
+        Los puestos en verde son los que pagan. Un círculo se llena con un
+        nombre recién cuando ese puesto ya quedó decidido (el jugador fue
+        eliminado ahí); antes de eso el monto es solo un estimado que se
+        actualiza en vivo — se confirma cuando el torneo termina.
       </p>
     </Card>
   );
