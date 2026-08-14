@@ -20,7 +20,8 @@ export default function Home() {
     try {
       await signInWithGoogle();
       router.push("/login");
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("No se pudo registrar con Google. Inténtalo de nuevo.");
       setSigningIn(false);
     }

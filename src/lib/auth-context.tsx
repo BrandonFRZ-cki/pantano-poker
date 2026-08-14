@@ -9,9 +9,11 @@ import {
 } from "react";
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   onAuthStateChanged,
   signInAnonymously,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   type User as FirebaseUser,
 } from "firebase/auth";
@@ -38,6 +40,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Si el login de Google se resolvió por redirección (signInWithRedirect,
+    // el respaldo cuando el popup no funciona — típico en Safari de iPad),
+    // acá se recoge el resultado al volver a cargar la página. Si no había
+    // ninguna redirección pendiente, esto resuelve rápido en null y no
+    // afecta nada.
+    getRedirectResult(auth).catch((err) => {
+      console.error("No se pudo completar el login por redirección", err);
+    });
+
     // Suscripción al documento de perfil del usuario actual. Se recrea cada
     // vez que cambia la sesión, y se cierra la anterior para no dejar
     // listeners de Firestore huérfanos.
@@ -102,7 +113,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      // Safari (sobre todo en iPad) suele bloquear el popup de Google, o lo
+      // cierra solo a mitad de camino por sus restricciones de cookies
+      // entre sitios — ahí signInWithPopup falla siempre, aunque en el
+      // celular funcione bien. Si el popup falla por lo que sea, se cae a
+      // signInWithRedirect: sale de la app a la pantalla de Google y vuelve
+      // solo, sin depender de que el popup funcione. El resultado se recoge
+      // en el useEffect de arriba (getRedirectResult) al volver a cargar.
+      console.error("Falló el login por popup, se intenta por redirección", err);
+      await signInWithRedirect(auth, provider);
+    }
   };
 
   // Sesión anónima de Firebase: útil para probar la app o para quien no

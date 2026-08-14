@@ -28,7 +28,8 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithGoogle();
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("No se pudo iniciar sesión con Google. Inténtalo de nuevo.");
     }
   };
