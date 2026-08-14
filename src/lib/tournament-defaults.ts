@@ -77,7 +77,6 @@ export const PANTANO_BLIND_STRUCTURE: BlindLevel[] = [
 // misma multa, houseRuleFine). Quedan editables al crear/editar el torneo.
 export const PANTANO_HOUSE_RULES: string[] = [
   "Jugar fuera de turno",
-  "Hablar de la mano o mostrar las cartas antes del showdown",
   "Prestar fichas entre jugadores",
   "Hablar de la mano después de haberse retirado (fold)",
   "Tocar las fichas de otro jugador",

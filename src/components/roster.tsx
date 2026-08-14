@@ -279,7 +279,7 @@ export function RegistrationCard({
                       disabled={busy}
                       onClick={() =>
                         run(p.uid, () =>
-                          registerBuyIn(tournament, p.uid, actingUid)
+                          registerBuyIn(tournament, p.uid, actingUid, tables)
                         )
                       }
                     >

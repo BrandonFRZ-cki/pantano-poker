@@ -37,19 +37,21 @@ export function BubbleCard({ players }: { players: Player[] }) {
       <p className="text-sm font-medium text-pp-brown/70">
         Burbuja de premios
       </p>
-      <div className="flex flex-wrap gap-2 justify-center">
+      <div className="flex flex-col gap-2">
         {slots.map((slot) => {
           const isPaid = slot.rank <= paidPlaces;
           return (
             <div
               key={slot.rank}
-              className="flex flex-col items-center gap-1 w-14"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
+                isPaid ? "bg-pp-green-dark/5" : "bg-pp-brown/5"
+              }`}
             >
               {slot.locked && slot.player ? (
                 <Avatar name={slot.player.displayName} size={36} />
               ) : (
                 <div
-                  className={`flex items-center justify-center w-9 h-9 rounded-full border-2 border-dashed text-xs font-medium ${
+                  className={`flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-2 border-dashed text-xs font-medium ${
                     isPaid
                       ? "border-pp-green-dark/50 text-pp-green-dark"
                       : "border-pp-brown/30 text-pp-brown/50"
@@ -59,7 +61,14 @@ export function BubbleCard({ players }: { players: Player[] }) {
                 </div>
               )}
               <span
-                className={`text-[10px] text-center leading-tight truncate w-full ${
+                className={`flex-1 text-sm truncate ${
+                  isPaid ? "text-pp-green-dark font-medium" : "text-pp-brown/70"
+                }`}
+              >
+                {slot.locked && slot.player ? slot.player.displayName : "Por decidir"}
+              </span>
+              <span
+                className={`text-xs shrink-0 ${
                   isPaid ? "text-pp-green-dark font-medium" : "text-pp-brown/50"
                 }`}
               >

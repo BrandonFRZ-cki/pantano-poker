@@ -421,11 +421,64 @@ async function logTransaction(
   await setDoc(ref, transaction);
 }
 
-/** Registra el buy-in inicial de un jugador y le entrega su stack de fichas. */
+/**
+ * Elige una mesa para sentar a un jugador nuevo (buy-in) o que reingresa
+ * (recompra): sortea al azar entre las mesas que todavía tienen un asiento
+ * libre (según seatsPerTable). Si ya están todas llenas, cae en la que
+ * tenga menos jugadores para no desbalancear más de la cuenta.
+ */
+function pickTableForSeat(
+  tables: PokerTable[],
+  seatsPerTable: number
+): PokerTable | null {
+  if (tables.length === 0) return null;
+  const withRoom = tables.filter((t) => t.playerIds.length < seatsPerTable);
+  if (withRoom.length > 0) {
+    return withRoom[Math.floor(Math.random() * withRoom.length)];
+  }
+  return [...tables].sort((a, b) => a.playerIds.length - b.playerIds.length)[0];
+}
+
+/**
+ * Sienta a un jugador (buy-in o recompra) en una mesa sorteada al azar
+ * entre las que tienen asiento libre, y le anota mesa/asiento en su doc.
+ */
+async function seatNewEntry(
+  tournamentId: string,
+  targetUid: string,
+  tables: PokerTable[],
+  seatsPerTable: number,
+  updates: Record<string, unknown>
+): Promise<void> {
+  const table = pickTableForSeat(tables, seatsPerTable);
+  if (table) {
+    updates.tableId = table.id;
+    updates.seat = table.playerIds.length + 1;
+  }
+
+  await updateDoc(
+    doc(db, "tournaments", tournamentId, "players", targetUid),
+    updates
+  );
+
+  if (table) {
+    await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+      playerIds: arrayUnion(targetUid),
+    });
+  }
+}
+
+/**
+ * Registra el buy-in inicial de un jugador y le entrega su stack de fichas.
+ * Si ya hay mesas armadas, lo sienta directo en una mesa sorteada con
+ * asiento libre (así no queda "fantasma" sin mesa hasta que el dealer lo
+ * mueva a mano).
+ */
 export async function registerBuyIn(
   tournament: TournamentSettings,
   targetUid: string,
-  actingUid: string
+  actingUid: string,
+  tables?: PokerTable[]
 ): Promise<void> {
   const chipsAwarded =
     chipsValue(tournament.chipValues, tournament.startingStack) +
@@ -440,19 +493,35 @@ export async function registerBuyIn(
     { chipsAwarded }
   );
 
-  await updateDoc(
-    doc(db, "tournaments", tournament.id, "players", targetUid),
-    { chips: chipsAwarded, buyInAt: Date.now(), status: "active" }
-  );
+  const updates: Record<string, unknown> = {
+    chips: chipsAwarded,
+    buyInAt: Date.now(),
+    status: "active",
+  };
+
+  if (tables && tables.length > 0) {
+    await seatNewEntry(
+      tournament.id,
+      targetUid,
+      tables,
+      tournament.seatsPerTable,
+      updates
+    );
+  } else {
+    await updateDoc(
+      doc(db, "tournaments", tournament.id, "players", targetUid),
+      updates
+    );
+  }
 }
 
 /**
  * Registra una recompra: mismas fichas que el buy-in inicial. Solo tiene
  * sentido para un jugador ya eliminado (reingresa a la mesa); por eso
  * también lo vuelve a marcar como "active". Si se le pasan las mesas
- * actuales, lo asienta directo en la que tenga menos jugadores (así no
- * queda "fantasma" sin mesa hasta que el dealer lo mueva a mano) y limpia
- * cualquier solicitud de recompra pendiente.
+ * actuales, lo asienta directo en una mesa sorteada con asiento libre (así
+ * no queda "fantasma" sin mesa hasta que el dealer lo mueva a mano) y
+ * limpia cualquier solicitud de recompra pendiente.
  */
 export async function registerRebuy(
   tournament: TournamentSettings,
@@ -483,25 +552,18 @@ export async function registerRebuy(
     rebuyRequestedAt: deleteField(),
   };
 
-  const smallestTable =
-    tables && tables.length > 0
-      ? [...tables].sort((a, b) => a.playerIds.length - b.playerIds.length)[0]
-      : null;
-
-  if (smallestTable) {
-    updates.tableId = smallestTable.id;
-    updates.seat = smallestTable.playerIds.length + 1;
-  }
-
-  await updateDoc(
-    doc(db, "tournaments", tournament.id, "players", targetUid),
-    updates
-  );
-
-  if (smallestTable) {
+  if (tables && tables.length > 0) {
+    await seatNewEntry(
+      tournament.id,
+      targetUid,
+      tables,
+      tournament.seatsPerTable,
+      updates
+    );
+  } else {
     await updateDoc(
-      doc(db, "tournaments", tournament.id, "tables", smallestTable.id),
-      { playerIds: arrayUnion(targetUid) }
+      doc(db, "tournaments", tournament.id, "players", targetUid),
+      updates
     );
   }
 }
