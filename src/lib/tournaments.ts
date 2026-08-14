@@ -687,6 +687,22 @@ export function subscribeToTables(
 }
 
 /**
+ * Grupo de dealers a repartir automáticamente uno por mesa (al armar las
+ * mesas) o a contar para el aviso de "faltan dealers". El dueño tiene
+ * privilegios de dealer en todo el torneo, pero no cuenta como uno de mesa
+ * "extra": si ya hay otros dealers asignados, no se lo toma en cuenta acá
+ * (igual sigue apareciendo en el selector manual de cada mesa, por si se
+ * quiere asignar él mismo a propósito). Si el dueño es el único dealer que
+ * hay, sí se lo cuenta — si no, ningún torneo chico podría arrancar.
+ */
+export function tableDealerPool(tournament: TournamentSettings): string[] {
+  const nonOwner = tournament.dealerUids.filter(
+    (uid) => uid !== tournament.ownerUid
+  );
+  return nonOwner.length > 0 ? nonOwner : tournament.dealerUids;
+}
+
+/**
  * Arma (o rehace desde cero) las mesas del torneo: reparte a los jugadores
  * activos y ya registrados en tantas mesas como haga falta según
  * seatsPerTable, en orden aleatorio. Útil también para rebalancear después
@@ -712,11 +728,12 @@ export async function assignTables(
   );
 
   // Con dealer fijo, cada mesa necesita su propio dealer (uno no puede
-  // repartir en dos mesas a la vez): se reparten los dealerUids disponibles
-  // uno por mesa; si faltan, esas mesas quedan sin asignar y el dueño las
-  // completa a mano (la UI avisa cuando falten).
+  // repartir en dos mesas a la vez): se reparten los dealers disponibles
+  // (sin contar al dueño si hay otros) uno por mesa; si faltan, esas mesas
+  // quedan sin asignar y el dueño las completa a mano (la UI avisa cuando
+  // falten).
   const availableDealers =
-    tournament.dealerMode === "fixed" ? tournament.dealerUids : [];
+    tournament.dealerMode === "fixed" ? tableDealerPool(tournament) : [];
 
   const tables: PokerTable[] = Array.from({ length: tableCount }, (_, i) => ({
     id: `mesa-${i + 1}`,

@@ -6,6 +6,7 @@ import {
   balanceTables,
   movePlayerToTable,
   setTableDealer,
+  tableDealerPool,
 } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { Avatar, Button, Card } from "@/components/ui";
@@ -51,8 +52,9 @@ export function TablesCard({
     eligibleCount > 0 ? 1 : 0
   );
   const fixedDealerMode = tournament.dealerMode === "fixed";
+  const dealerPool = tableDealerPool(tournament);
   const notEnoughDealersToStart =
-    fixedDealerMode && estimatedTables > tournament.dealerUids.length;
+    fixedDealerMode && estimatedTables > dealerPool.length;
 
   const counts = tables.map((t) => t.playerIds.length);
   const imbalance =
@@ -135,11 +137,11 @@ export function TablesCard({
         {notEnoughDealersToStart && (
           <p className="text-xs text-amber-800 bg-amber-50 border border-amber-300/60 rounded-lg px-3 py-2">
             Con {tournament.seatsPerTable} jugadores por mesa te van a salir
-            ~{estimatedTables} mesas, pero solo tienes{" "}
-            {tournament.dealerUids.length} dealer
-            {tournament.dealerUids.length === 1 ? "" : "es"} asignados. Cada
-            mesa necesita el suyo — agrega más dealers en Roles antes de
-            armarlas, o arma igual y asígnalos después.
+            ~{estimatedTables} mesas, pero solo tienes {dealerPool.length}{" "}
+            dealer{dealerPool.length === 1 ? "" : "es"} de mesa (sin contar
+            al dueño, salvo que sea el único). Cada mesa necesita el suyo —
+            agrega más dealers en Roles antes de armarlas, o arma igual y
+            asígnalos después.
           </p>
         )}
         <Button
