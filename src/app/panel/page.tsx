@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { deleteTournament, getUserTournaments } from "@/lib/tournaments";
 import type { TournamentSettings } from "@/types/tournament";
-import { Badge, Button, Card, LinkButton } from "@/components/ui";
+import { Badge, Button, Card, IconArrowLeft, LinkButton } from "@/components/ui";
 import { LoadingScreen } from "@/components/loading";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -68,6 +68,14 @@ export default function PanelPage() {
   return (
     <div className="flex flex-col flex-1 bg-pp-cream px-5 py-8 sm:py-12">
       <div className="w-full max-w-md mx-auto flex flex-col items-center gap-8">
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 text-sm text-pp-brown/60 hover:text-pp-brown self-start"
+        >
+          <IconArrowLeft />
+          Inicio
+        </Link>
+
         <div className="text-center">
           <h1 className="font-display text-3xl text-pp-green-dark">
             Hola, {profile.displayName}
