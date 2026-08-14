@@ -170,7 +170,7 @@ export async function joinTournamentByCode(
 ): Promise<string> {
   const normalized = code.trim().toUpperCase();
   if (!normalized) {
-    throw new Error("Ingresá un código.");
+    throw new Error("Ingresa un código.");
   }
 
   const matches = await getDocs(
@@ -474,6 +474,9 @@ async function seatNewEntry(
   if (table) {
     updates.tableId = table.id;
     updates.seat = table.playerIds.length + 1;
+    // Nueva mesa = nueva confirmación pendiente, aunque haya confirmado la
+    // anterior.
+    updates.seatConfirmedAt = deleteField();
   }
 
   await updateDoc(
@@ -600,6 +603,20 @@ export async function requestRebuy(
 ): Promise<void> {
   await updateDoc(doc(db, "tournaments", tournamentId, "players", uid), {
     rebuyRequestedAt: Date.now(),
+  });
+}
+
+/**
+ * El propio jugador confirma "Ya estoy sentado" después de que le asignaron
+ * mesa (o lo movieron a otra). Es una escritura sobre su propio documento,
+ * no del dealer.
+ */
+export async function confirmSeat(
+  tournamentId: string,
+  uid: string
+): Promise<void> {
+  await updateDoc(doc(db, "tournaments", tournamentId, "players", uid), {
+    seatConfirmedAt: Date.now(),
   });
 }
 
@@ -772,6 +789,7 @@ export async function assignTables(
         updateDoc(doc(db, "tournaments", tournament.id, "players", uid), {
           tableId: table.id,
           seat: seatIndex + 1,
+          seatConfirmedAt: deleteField(),
         })
       )
     )
@@ -789,6 +807,10 @@ export async function balanceTables(
   tables: PokerTable[]
 ): Promise<void> {
   const working = tables.map((t) => ({ ...t, playerIds: [...t.playerIds] }));
+  // Solo a quien de verdad cambia de mesa se le pide reconfirmar el asiento
+  // — si se queda en la misma mesa (la mayoría), no tiene sentido hacerlo
+  // reconfirmar de nuevo.
+  const movedUids = new Set<string>();
 
   let changed = true;
   while (changed) {
@@ -807,6 +829,7 @@ export async function balanceTables(
       const movedUid = largest.playerIds.pop();
       if (movedUid) {
         smallest.playerIds.push(movedUid);
+        movedUids.add(movedUid);
         changed = true;
       }
     }
@@ -834,6 +857,7 @@ export async function balanceTables(
         updateDoc(doc(db, "tournaments", tournamentId, "players", uid), {
           tableId: table.id,
           seat: seatIndex + 1,
+          ...(movedUids.has(uid) ? { seatConfirmedAt: deleteField() } : {}),
         })
       )
     )
@@ -958,6 +982,7 @@ export async function seatPlayerAtTable(
   await updateDoc(doc(db, "tournaments", tournamentId, "players", playerUid), {
     tableId: table.id,
     seat: newPlayerIds.length,
+    seatConfirmedAt: deleteField(),
   });
 }
 
@@ -988,6 +1013,7 @@ export async function movePlayerToTable(
   await updateDoc(doc(db, "tournaments", tournamentId, "players", playerUid), {
     tableId: targetTableId,
     seat: newPlayerIds.length,
+    seatConfirmedAt: deleteField(),
   });
 }
 

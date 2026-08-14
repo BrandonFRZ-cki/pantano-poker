@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -116,31 +116,6 @@ export default function TorneoDetallePage({
   useEffect(() => subscribeToTables(id, setTables), [id]);
   useEffect(() => subscribeToTransactions(id, setTransactions), [id]);
 
-  // Aviso cuando te asignan o te cambian de mesa (armado inicial, balanceo,
-  // movimiento manual, recompra, etc.): se compara la mesa anterior con la
-  // actual cada vez que cambia el jugador en vivo.
-  const prevTableIdRef = useRef<string | null | undefined>(undefined);
-  const [tableChangeNotice, setTableChangeNotice] = useState<string | null>(
-    null
-  );
-  useEffect(() => {
-    if (!player) return;
-    const prev = prevTableIdRef.current;
-    if (
-      prev !== undefined &&
-      prev !== player.tableId &&
-      player.tableId &&
-      player.status === "active"
-    ) {
-      const table = tables.find((t) => t.id === player.tableId);
-      const verb = prev === null ? "Fuiste asignado a" : "Te cambiaste a";
-      setTableChangeNotice(
-        `${verb} ${table?.name ?? "una mesa"}${player.seat ? `, asiento ${player.seat}` : ""}.`
-      );
-    }
-    prevTableIdRef.current = player.tableId;
-  }, [player, tables]);
-
   // El nombre del jugador se copia una vez al unirse; si después cambia su
   // nombre de perfil, se sincroniza acá para que no quede desactualizado en
   // este torneo (no aplica a jugadores temporales, que no tienen perfil).
@@ -227,19 +202,6 @@ export default function TorneoDetallePage({
             </LinkButton>
           )}
         </div>
-
-        {tableChangeNotice && (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-pp-green-light/30 border border-pp-green-mid/30 px-4 py-2.5">
-            <p className="text-sm text-pp-green-dark">{tableChangeNotice}</p>
-            <button
-              type="button"
-              onClick={() => setTableChangeNotice(null)}
-              className="text-xs text-pp-green-dark/60 hover:text-pp-green-dark underline shrink-0"
-            >
-              Cerrar
-            </button>
-          </div>
-        )}
 
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-display text-3xl text-pp-green-dark leading-tight">

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { SideMenu } from "@/components/side-menu";
 import { TournamentWatcher } from "@/components/tournament-watcher";
 import { EliminationGate } from "@/components/eliminated-summary";
+import { TableAssignmentGate } from "@/components/table-assignment";
 
 /**
  * Barra superior con el logo, presente en todas las páginas. Cuando la
@@ -24,6 +25,7 @@ export function Header() {
         <>
           <TournamentWatcher tournamentId={tournamentId} />
           <EliminationGate tournamentId={tournamentId} />
+          <TableAssignmentGate tournamentId={tournamentId} />
         </>
       )}
       <span />

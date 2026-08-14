@@ -96,6 +96,11 @@ export function SeatDiagram({
         const posLabel = positionLabels?.[uid];
         const isFolded = (table.foldedUids ?? []).includes(uid);
         const tappable = !compact && !!onSeatTap;
+        // Los jugadores locales (sin celular propio) no confirman asiento —
+        // los maneja el dueño, así que no tiene sentido pedirles que toquen
+        // nada. Para el resto, mientras no hayan tocado "Ya estoy sentado"
+        // después de que se les asignó esta mesa, se les marca un aviso.
+        const needsSeatConfirm = !player.isLocal && !player.seatConfirmedAt;
 
         return (
           <div
@@ -128,6 +133,18 @@ export function SeatDiagram({
                     D
                   </span>
                 )}
+                {needsSeatConfirm && (
+                  <span
+                    title="Todavía no confirmó su asiento"
+                    className={`absolute flex items-center justify-center rounded-full bg-amber-500 font-bold text-white ${
+                      compact
+                        ? "-bottom-1 -right-1 w-3 h-3 text-[7px]"
+                        : "-bottom-1.5 -right-1.5 w-4 h-4 text-[9px]"
+                    }`}
+                  >
+                    !
+                  </span>
+                )}
               </div>
               <span
                 className={`text-pp-brown text-center leading-tight truncate ${
@@ -154,6 +171,11 @@ export function SeatDiagram({
                         {posLabel}
                       </span>
                     )
+                  )}
+                  {needsSeatConfirm && (
+                    <span className="text-[9px] font-medium text-amber-600">
+                      Sin confirmar
+                    </span>
                   )}
                   {player.revealedHand && player.revealedHand.length > 0 && (
                     <span className="text-[10px] font-medium text-pp-brown">
