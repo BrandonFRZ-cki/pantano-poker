@@ -401,6 +401,60 @@ export function IconX() {
   );
 }
 
+export function IconChevronsLeft() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m11 17-5-5 5-5" />
+      <path d="m18 17-5-5 5-5" />
+    </svg>
+  );
+}
+
+export function IconChevronsRight() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m6 17 5-5-5-5" />
+      <path d="m13 17 5-5-5-5" />
+    </svg>
+  );
+}
+
+export function IconCards() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2.5" y="7.5" width="12" height="16" rx="2" transform="rotate(-14 8.5 15.5)" />
+      <rect x="9.5" y="4" width="12" height="16" rx="2" />
+    </svg>
+  );
+}
+
 export function IconUsers() {
   return (
     <svg

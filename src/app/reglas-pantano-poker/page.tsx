@@ -10,6 +10,39 @@ import {
   IconTable,
   IconUsers,
 } from "@/components/ui";
+import { SeatDiagram } from "@/components/table-seats";
+import type { Player, PokerTable } from "@/types/tournament";
+
+// Mesa de ejemplo (no es real, solo ilustra la distribución): 6 jugadores,
+// uno con el botón, uno con el turno de hablar y otro ya retirado (fold) de
+// esta mano, para mostrar los tres estados de un asiento de una.
+const SAMPLE_NAMES = ["Brandon", "Vivi", "Cami", "Andre", "Pau", "Toa"];
+const SAMPLE_TABLE: PokerTable = {
+  id: "demo",
+  tournamentId: "demo",
+  name: "Mesa de ejemplo",
+  playerIds: SAMPLE_NAMES.map((_, i) => `p${i + 1}`),
+  dealerUid: null,
+  buttonUid: "p1",
+  currentActorUid: "p4",
+  speakClockEndsAt: null,
+  speakClockPausedMs: null,
+  speakClockSeconds: 30,
+  foldedUids: ["p6"],
+};
+const SAMPLE_PLAYERS: Player[] = SAMPLE_NAMES.map((name, i) => ({
+  id: `p${i + 1}`,
+  tournamentId: "demo",
+  uid: `p${i + 1}`,
+  displayName: name,
+  role: "player",
+  tableId: "demo",
+  seat: i + 1,
+  chips: 5000 - i * 350,
+  status: "active",
+  bountiesWon: [],
+  registeredAt: Date.now(),
+}));
 
 interface RuleSection {
   icon: ReactNode;
@@ -33,7 +66,7 @@ const SECTIONS: RuleSection[] = [
           siempre.
         </p>
         <p>
-          Si te quedás en cero fichas, podés reingresar (recomprar) mientras
+          Si te quedas en cero fichas, puedes reingresar (recomprar) mientras
           el torneo todavía lo permite, y en el receso hay una única
           oportunidad de comprar fichas extra (addon). Al final se reparte
           un premio en dólares según el puesto en que quedó cada uno, más un
@@ -108,7 +141,7 @@ const SECTIONS: RuleSection[] = [
         </p>
         <p>
           Las fichas no valen nada fuera del torneo: son solo para llevar
-          la cuenta de cuánto tenés en juego en cada momento. Lo que
+          la cuenta de cuánto tienes en juego en cada momento. Lo que
           realmente importa al final es tu puesto, no las fichas que
           llegaste a acumular en el camino.
         </p>
@@ -133,6 +166,19 @@ const SECTIONS: RuleSection[] = [
           niveles, según cómo se configuró ese torneo. Lo ves marcado
           arriba del diagrama de tu mesa.
         </p>
+        <div>
+          <SeatDiagram
+            table={SAMPLE_TABLE}
+            players={SAMPLE_PLAYERS}
+            currentUid="p3"
+            dealerName="Brandon"
+          />
+          <p className="text-xs text-pp-brown/50 text-center mt-2">
+            Mesa de ejemplo: la &quot;D&quot; marca el botón, el asiento
+            resaltado en verde es a quien le toca hablar, y el que aparece
+            apagado ya se retiró (fold) en esa mano.
+          </p>
+        </div>
       </div>
     ),
   },
@@ -142,18 +188,19 @@ const SECTIONS: RuleSection[] = [
     content: (
       <div className="flex flex-col gap-2">
         <p>
-          Cuando apostás todas las fichas que te quedan de una vez, estás{" "}
+          Cuando apuestas todas las fichas que te quedan de una vez, estás
+          {" "}
           <span className="font-medium">all-in</span>. Si otro jugador
-          sigue en la mano con más fichas que vos, no puede apostar contra
-          vos más allá de lo que vos pusiste: lo que se sigan apostando
-          entre ellos por arriba de tu all-in arma un{" "}
+          sigue en la mano con más fichas que tú, no puede apostar contra ti
+          más allá de lo que tú pusiste: lo que se sigan apostando entre
+          ellos por arriba de tu all-in arma un{" "}
           <span className="font-medium">bote lateral (side pot)</span> del
-          que quedás afuera.
+          que quedas afuera.
         </p>
         <p>
-          Vos solo podés ganar el bote principal (hasta el límite de tu
+          Solo puedes ganar el bote principal (hasta el límite de tu
           all-in); el bote lateral se lo disputan entre los que siguieron
-          con más fichas, aunque vos tengas la mejor mano de los tres.
+          con más fichas, aunque tengas la mejor mano de los tres.
         </p>
         <div className="rounded-xl bg-pp-brown/5 px-3 py-2.5 text-sm">
           <p className="font-medium text-pp-brown mb-1">Ejemplo</p>
@@ -180,7 +227,7 @@ const SECTIONS: RuleSection[] = [
     title: "Recompras y addon",
     content: (
       <p>
-        Si te quedás en cero fichas, podés recomprar (pagar de nuevo para
+        Si te quedas en cero fichas, puedes recomprar (pagar de nuevo para
         volver con un stack nuevo) mientras el torneo todavía lo permite.
         La última recompra y la ventana de addon —una compra extra de
         fichas, una sola vez, aunque no estés en cero— caen juntas en el
@@ -195,8 +242,8 @@ const SECTIONS: RuleSection[] = [
     content: (
       <div className="flex flex-col gap-2">
         <p>
-          Cada vez que eliminás a alguien, además de tu puesto en el
-          reparto de premios, ganás un bounty en dólares (ya viene incluido
+          Cada vez que eliminas a alguien, además de tu puesto en el
+          reparto de premios, ganas un bounty en dólares (ya viene incluido
           en cada inscripción y recompra, no es un cobro aparte). Según el
           torneo, el monto puede ser fijo y visible desde el principio, o
           &quot;misterioso&quot; (se revela recién al cerrarse las
@@ -254,9 +301,9 @@ const SECTIONS: RuleSection[] = [
       <p>
         Para que las manos no se hagan eternas, cada jugador tiene un
         reloj corto para decidir cuando le toca hablar. Si no vas a seguir
-        en esa mano, tocás el botón grande de{" "}
-        <span className="font-medium">Fold (Retirarse)</span> y esperás a
-        la siguiente — volvés a aparecer normal ahí. El dealer controla el
+        en esa mano, tocas el botón grande de{" "}
+        <span className="font-medium">Fold (Retirarse)</span> y esperas a
+        la siguiente — vuelves a aparecer normal ahí. El dealer controla el
         orden desde Mi mesa: puede pasar al siguiente jugador o volver al
         anterior si hay alguna confusión.
       </p>

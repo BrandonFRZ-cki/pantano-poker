@@ -55,11 +55,11 @@ export default function Home() {
         {!loading && firebaseUser ? (
           <>
             <div className="flex items-center justify-center gap-2 rounded-full bg-white border border-pp-green-mid/20 px-4 py-2">
-              <Avatar name={profile?.displayName ?? "Vos"} size={28} />
+              <Avatar name={profile?.displayName ?? "Tú"} size={28} />
               <span className="text-sm text-pp-brown truncate">
                 Sesión iniciada como{" "}
                 <span className="font-medium">
-                  {profile?.displayName ?? "vos"}
+                  {profile?.displayName ?? "tú"}
                 </span>
               </span>
             </div>
@@ -74,7 +74,7 @@ export default function Home() {
               onClick={() => signOutUser()}
               className="text-sm text-pp-brown/50 hover:text-pp-brown underline"
             >
-              ¿No eres vos? Cerrar sesión
+              ¿No eres tú? Cerrar sesión
             </button>
           </>
         ) : (
@@ -116,13 +116,13 @@ export default function Home() {
         )}
         <Link
           href="/reglas-pantano-poker"
-          className="text-sm text-pp-brown/60 hover:text-pp-brown underline mt-1"
+          className="rounded-full border-2 border-pp-green-dark/40 text-pp-green-dark font-display py-3 px-6 text-center hover:bg-pp-green-light/10 transition-colors mt-1"
         >
           Reglas de torneo Pantano Poker
         </Link>
         <Link
           href="/como-funciona"
-          className="text-sm text-pp-brown/60 hover:text-pp-brown underline"
+          className="rounded-full border-2 border-pp-green-dark/40 text-pp-green-dark font-display py-3 px-6 text-center hover:bg-pp-green-light/10 transition-colors"
         >
           ¿Cómo funciona la web?
         </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, use, useEffect, useState } from "react";
+import { Suspense, use, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -22,13 +22,24 @@ import {
   subscribeToPlayers,
   subscribeToTables,
   subscribeToTournament,
+  undoAdvanceButton,
   updatePlayerChips,
 } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { SeatDiagram } from "@/components/table-seats";
 import { MiniLevelTimer } from "@/components/timer";
 import { HandPicker } from "@/components/hand-picker";
-import { Button, Card, IconArrowLeft, IconPause, IconPlay } from "@/components/ui";
+import {
+  Button,
+  Card,
+  IconArrowLeft,
+  IconCards,
+  IconChevronsLeft,
+  IconChevronsRight,
+  IconPause,
+  IconPlay,
+  IconUser,
+} from "@/components/ui";
 import { LoadingScreen } from "@/components/loading";
 
 function formatClock(ms: number): string {
@@ -36,6 +47,37 @@ function formatClock(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Botón grande con icono para los controles del dealer: pensado para que se
+ * entienda de un vistazo sin tener que leer, en medio del apuro de una
+ * partida.
+ */
+function DealerControlButton({
+  icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-pp-green-dark/40 text-pp-green-dark py-3 px-1 hover:bg-pp-green-light/10 transition-colors disabled:opacity-40"
+    >
+      <span className="flex items-center justify-center gap-0.5">{icon}</span>
+      <span className="text-[11px] font-display leading-tight text-center">
+        {label}
+      </span>
+    </button>
+  );
 }
 
 function MesaContent({
@@ -505,70 +547,79 @@ function MesaContent({
               )}
 
               {isDealer && (
-                <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => run(() => advanceButton(id, table))}
-                  >
-                    Siguiente mano
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => run(() => prevSpeaker(id, table))}
-                  >
-                    Mano anterior
-                  </Button>
-                  {speakClockRunning ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
+                <div className="w-full flex flex-col gap-2 mt-1">
+                  <div className="grid grid-cols-3 gap-2">
+                    <DealerControlButton
+                      icon={
+                        <>
+                          <IconChevronsLeft />
+                          <IconUser />
+                        </>
+                      }
+                      label="Jugador anterior"
                       disabled={busy}
-                      onClick={() => run(() => pauseSpeakClock(id, table))}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <IconPause />
-                        Pausar
-                      </span>
-                    </Button>
-                  ) : table.speakClockPausedMs ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
+                      onClick={() => run(() => prevSpeaker(id, table))}
+                    />
+                    {speakClockRunning ? (
+                      <DealerControlButton
+                        icon={<IconPause />}
+                        label="Pausar"
+                        disabled={busy}
+                        onClick={() => run(() => pauseSpeakClock(id, table))}
+                      />
+                    ) : table.speakClockPausedMs ? (
+                      <DealerControlButton
+                        icon={<IconPlay />}
+                        label="Reanudar"
+                        disabled={busy}
+                        onClick={() => run(() => resumeSpeakClock(id, table))}
+                      />
+                    ) : (
+                      <DealerControlButton
+                        icon={<IconPlay />}
+                        label={isBreakOrAddon ? "Iniciar reloj (receso)" : "Iniciar reloj"}
+                        disabled={busy || isBreakOrAddon}
+                        onClick={() => run(() => startSpeakClock(id, table))}
+                      />
+                    )}
+                    <DealerControlButton
+                      icon={
+                        <>
+                          <IconUser />
+                          <IconChevronsRight />
+                        </>
+                      }
+                      label="Siguiente jugador"
                       disabled={busy}
-                      onClick={() => run(() => resumeSpeakClock(id, table))}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <IconPlay />
-                        Reanudar
-                      </span>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={busy || isBreakOrAddon}
-                      onClick={() => run(() => startSpeakClock(id, table))}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <IconPlay />
-                        {isBreakOrAddon ? "Iniciar reloj (receso)" : "Iniciar reloj"}
-                      </span>
-                    </Button>
-                  )}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => run(() => nextSpeaker(id, table))}
-                  >
-                    Siguiente jugador
-                  </Button>
-                  <label className="text-xs text-pp-brown/60 flex items-center gap-1">
-                    Segundos
+                      onClick={() => run(() => nextSpeaker(id, table))}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <DealerControlButton
+                      icon={
+                        <>
+                          <IconChevronsLeft />
+                          <IconCards />
+                        </>
+                      }
+                      label="Mano anterior"
+                      disabled={busy}
+                      onClick={() => run(() => undoAdvanceButton(id, table))}
+                    />
+                    <DealerControlButton
+                      icon={
+                        <>
+                          <IconCards />
+                          <IconChevronsRight />
+                        </>
+                      }
+                      label="Siguiente mano"
+                      disabled={busy}
+                      onClick={() => run(() => advanceButton(id, table))}
+                    />
+                  </div>
+                  <label className="text-xs text-pp-brown/60 flex items-center justify-center gap-1">
+                    Segundos por turno
                     <select
                       className="border border-pp-green-mid/30 rounded-lg px-1.5 py-1 bg-white text-pp-brown"
                       value={table.speakClockSeconds ?? 30}

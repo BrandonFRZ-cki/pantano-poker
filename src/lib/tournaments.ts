@@ -20,6 +20,7 @@ import {
   nextActiveInTable,
   nextInTable,
   prevActiveInTable,
+  prevInTable,
 } from "@/lib/table-order";
 import type {
   AppUser,
@@ -1005,6 +1006,25 @@ export async function advanceButton(
     speakClockEndsAt: null,
     speakClockPausedMs: null,
     // Mano nueva: nadie está retirado todavía.
+    foldedUids: [],
+  });
+}
+
+/**
+ * Deshace el último "Siguiente mano" (por si el dealer se apuró o hubo una
+ * confusión): vuelve el botón un asiento para atrás y reinicia el turno de
+ * habla, igual que advanceButton pero en la dirección contraria.
+ */
+export async function undoAdvanceButton(
+  tournamentId: string,
+  table: PokerTable
+): Promise<void> {
+  const prev = prevInTable(table, table.buttonUid);
+  await updateDoc(doc(db, "tournaments", tournamentId, "tables", table.id), {
+    buttonUid: prev,
+    currentActorUid: null,
+    speakClockEndsAt: null,
+    speakClockPausedMs: null,
     foldedUids: [],
   });
 }

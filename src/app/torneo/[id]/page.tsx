@@ -173,7 +173,7 @@ export default function TorneoDetallePage({
   }
 
   // El rol que se muestra nunca depende únicamente del dato guardado en el
-  // documento del jugador: si sos el dueño del torneo (tournament.ownerUid),
+  // documento del jugador: si eres el dueño del torneo (tournament.ownerUid),
   // siempre se te trata como tal, aunque ese documento sea viejo.
   const effectiveRole = isOwner ? "owner" : player.role;
 

@@ -41,7 +41,7 @@ export function HandPicker({
     <Card className="flex flex-col gap-3">
       <p className="text-sm font-medium text-pp-brown/70">Tu mano</p>
       <p className="text-xs text-pp-brown/50">
-        Es opcional: solo la ven los demás si vos decidís mostrarla.
+        Es opcional: solo la ven los demás si tú decides mostrarla.
       </p>
 
       {isRevealed ? (

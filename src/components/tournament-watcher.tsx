@@ -19,7 +19,7 @@ import type { PokerTable, TournamentSettings } from "@/types/tournament";
  * pantalla principal. Al vivir acá, corren sin importar qué pantalla tenga
  * abierta.
  *
- * Hace 3 cosas, todas solo si sos dealer de este torneo:
+ * Hace 3 cosas, todas solo si eres dealer de este torneo:
  * 1. Avanza el nivel solo cuando se acaba el tiempo.
  * 2. Rota los dealers entre mesas cada X niveles (configurable).
  * 3. Balancea las mesas automáticamente al llegar al receso/addon.

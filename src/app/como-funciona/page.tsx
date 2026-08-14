@@ -49,13 +49,13 @@ const GLOSSARY: GlossaryItem[] = [
     term: "Fold (retirarse)",
     short: "tirar tus cartas y salir de esa mano",
     explanation:
-      "Cuando no quieres seguir apostando en una mano, te retiras (fold) y esperas a la siguiente. En Mi mesa hay un botón grande para marcarlo cuando es tu turno; volvés a aparecer normal en la próxima mano.",
+      "Cuando no quieres seguir apostando en una mano, te retiras (fold) y esperas a la siguiente. En Mi mesa hay un botón grande para marcarlo cuando es tu turno; vuelves a aparecer normal en la próxima mano.",
   },
   {
     term: "All-in",
     short: "apostar todas las fichas que te quedan",
     explanation:
-      "Cuando apuestas absolutamente todo tu stack de una vez. Si perdés esa mano, quedás eliminado (o pedís recompra si todavía se puede).",
+      "Cuando apuestas absolutamente todo tu stack de una vez. Si pierdes esa mano, quedas eliminado (o pides recompra si todavía se puede).",
   },
   {
     term: "Bounty",
@@ -67,13 +67,13 @@ const GLOSSARY: GlossaryItem[] = [
     term: "Recompra (Rebuy)",
     short: "comprar fichas de nuevo tras quedar en cero",
     explanation:
-      "Si te eliminan y el torneo todavía lo permite (hasta cierto nivel), podés volver a entrar pagando de nuevo el monto de recompra a cambio de un stack nuevo de fichas.",
+      "Si te eliminan y el torneo todavía lo permite (hasta cierto nivel), puedes volver a entrar pagando de nuevo el monto de recompra a cambio de un stack nuevo de fichas.",
   },
   {
     term: "Addon",
     short: "una compra extra de fichas, una sola vez",
     explanation:
-      "En la ventana del receso podés comprar fichas adicionales una única vez, aunque no te hayas quedado en cero. Última oportunidad antes de que el torneo siga sin más movimientos de dinero.",
+      "En la ventana del receso puedes comprar fichas adicionales una única vez, aunque no te hayas quedado en cero. Última oportunidad antes de que el torneo siga sin más movimientos de dinero.",
   },
   {
     term: "Bote (Pot)",
