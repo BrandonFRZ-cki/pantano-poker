@@ -23,6 +23,7 @@ import {
 } from "@/lib/tournaments";
 import type { Player, PokerTable, TournamentSettings } from "@/types/tournament";
 import { SeatDiagram } from "@/components/table-seats";
+import { MiniLevelTimer } from "@/components/timer";
 import { HandPicker } from "@/components/hand-picker";
 import { Button, Card, IconArrowLeft, IconPause, IconPlay } from "@/components/ui";
 import { LoadingScreen } from "@/components/loading";
@@ -234,6 +235,8 @@ function MesaContent({
         <h1 className="font-display text-2xl text-pp-green-dark text-center">
           Mi mesa
         </h1>
+
+        <MiniLevelTimer tournament={tournament} />
 
         {viewAsUid && isDealer && viewedPlayer && (
           <div className="flex items-center justify-between gap-3 rounded-xl bg-pp-green-light/30 border border-pp-green-mid/30 px-4 py-2.5">

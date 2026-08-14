@@ -18,6 +18,45 @@ function formatClock(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+/** Franja chica con el timer de niveles y las ciegas/ante, para mostrar arriba de otras pantallas (ej. Mi mesa). */
+export function MiniLevelTimer({ tournament }: { tournament: TournamentSettings }) {
+  const [now, setNow] = useState(() => Date.now());
+  const isRunning = tournament.status === "in_progress";
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  if (tournament.status === "registering" || tournament.status === "finished") {
+    return null;
+  }
+
+  const remainingMs = isRunning
+    ? (tournament.levelEndsAt ?? now) - now
+    : tournament.pausedRemainingMs ?? 0;
+  const currentLevel = tournament.blindStructure[tournament.currentLevel - 1];
+
+  return (
+    <div className="flex items-center justify-center gap-3 rounded-full bg-white/70 border border-pp-green-mid/15 px-4 py-1.5 mx-auto text-sm">
+      <span className="text-pp-brown/70">
+        {currentLevel?.isBreak ? "Receso" : `Nivel ${tournament.currentLevel}`}
+        {tournament.status === "paused" && " · pausado"}
+      </span>
+      <span className="font-display text-pp-green-dark tabular-nums">
+        {formatClock(remainingMs)}
+      </span>
+      {currentLevel && !currentLevel.isBreak && (
+        <span className="text-pp-brown">
+          {currentLevel.smallBlind}/{currentLevel.bigBlind}
+          {currentLevel.ante ? ` · ante ${currentLevel.ante}` : ""}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function TimerCard({
   tournament,
   isDealer,
